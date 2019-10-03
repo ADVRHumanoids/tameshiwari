@@ -11,6 +11,10 @@ find_package(catkin REQUIRED COMPONENTS
     roscpp
     )
 
+find_package(Eigen3 REQUIRED)
+
+find_package(casadi REQUIRED)
+
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
@@ -115,7 +119,9 @@ catkin_package(
 ## Your package locations should be listed before other locations
 include_directories(
     include
+    src/
     ${catkin_INCLUDE_DIRS}
+    ${EIGEN3_INCLUDE_DIRS}
     )
 
 ## Declare a C++ library
@@ -195,3 +201,6 @@ install(DIRECTORY include/${PROJECT_NAME}/
 
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
+
+
+add_subdirectory(bindings/python/)
