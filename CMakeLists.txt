@@ -9,6 +9,7 @@ add_compile_options(-std=c++11)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
     roscpp
+    urdf
     )
 
 find_package(Eigen3 REQUIRED)
@@ -138,6 +139,7 @@ include_directories(
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
 add_executable(talker src/talker.cpp src/talker_main.cpp)
+add_executable(parser src/parser.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -151,6 +153,9 @@ add_executable(talker src/talker.cpp src/talker_main.cpp)
 
 # Specify libraries to link a library or executable target against
 target_link_libraries(talker
+    ${catkin_LIBRARIES}
+    )
+target_link_libraries(parser 
     ${catkin_LIBRARIES}
     )
 
