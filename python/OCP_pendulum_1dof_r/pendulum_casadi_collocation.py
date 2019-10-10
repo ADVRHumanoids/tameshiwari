@@ -5,6 +5,9 @@ Created on Wed Oct  2 12:50:04 2019
 
 @author: Paul Janssen
 """
+#==============================================================================
+#       Released packages
+#==============================================================================
 
 from casadi import *
 import os
@@ -12,6 +15,12 @@ import numpy as np
 import numpy.matlib as ml
 import matplotlib.pyplot as plt
 import scipy.io as sio
+
+#==============================================================================
+#       Custom packages
+#==============================================================================
+
+import functions as fn
 
 # =============================================================================
 #       Pendulum dynamics for state x = [phi, omega]' control u
@@ -23,11 +32,12 @@ import scipy.io as sio
 #       General Parameters
 var_pl      = 1
 var_save    = 1
-name        = 'results_multiple_shooting'
+name        = 'results_collocation'
 filename    = "%s/%s.mat" % (os.getcwd(),name)
 
 
 #       Simulation Parameters
+d           = 3
 N           = 60
 h           = 0.2
 Tf          = N*h
@@ -50,6 +60,9 @@ ub_u        = 1.1
 lb_x        = [lb_phi,   lb_omega]
 ub_x        = [ub_phi,   ub_omega]
 
+#       Create the collocation matrices
+col         = fn.collocation(d)     # contains col.B col.C col.D
+
 # =============================================================================
 #       Integrate Dynamics --> DIRECT METHOD, FIRST INTEGRATE THEN OPTIMIZE
 # =============================================================================
@@ -70,27 +83,8 @@ xdot        = vertcat(xdot0, xdot1)
 #       Objective Function
 L           = phi**2 + u**2
 
-#       This RK4 integrator is a symbolic map from the state variables and
-#       control inputs to the objective function and state variables at the next
-#       time instance. This function will be looped over in a later part of the
-#       script.
+#       Continous Time Dynamics
 f           = Function('f',[x,u],[xdot,L])
-X_0         = MX.sym('X_0',2)
-U           = MX.sym('U')
-#       MX variable is chosen because the function are evaluated many times
-X           = X_0
-Q           = 0
-#       The next step evaluates the function f at symbolic inputs (X,U) resulting
-#       in a local evaluation of the gradient of state evaluation and the area
-#       under the cost function graph.
-k1, k1_q    = f(X,              U)
-k2, k2_q    = f(X + (h*k1)/2,   U)
-k3, k3_q    = f(X + (h*k2)/2,   U)
-k4, k4_q    = f(X + (h*k3),     U)
-X           = X + (h/6)*(k1 + 2*k2 + 2*k3 + k4)
-Q           = Q + (h/6)*(k1_q + 2*k2_q + 2*k3_q + k4_q)
-#       Create the map from the state variables to the evaluated functions
-F           = Function('F',[X_0, U],[X,Q],['x0','p'],['xf','qf'])
 
 # =============================================================================
 #       NONLINEAR PROGRAM --> FIND A SOLUTION FOR THE OPTIMAL CONTROL INPUT
@@ -124,7 +118,6 @@ ubg         = []
 #       change during the iterations, they are not to be used as free variables,
 #       but rather as parameter variables.
 #==============================================================================
-Xk          = MX(x_0)
 
 Xk          = MX.sym('X0',2)                    # Define the initial condition as a variable
 q           += [Xk]                             # Fill the decision variable vector with first state elements
@@ -142,10 +135,36 @@ for k in range(N):
     lbq         += [lb_u]
     ubq         += [ub_u]
     q_0         += [u_0]
-    #       Integrate till the end of the interval
-    Fk          = F(x0=Xk, p=Uk)
-    Xk_next     = Fk['xf']
-    J           = Fk['qf'] + J
+    
+    #       New NLP variable for the collocation states
+    Xc         = []
+    for j in range(d):
+        Xkj     = MX.sym('X_'+str(k)+'_'+str(j),2)
+        #        Xc.append(Xkj)
+        Xc      += [Xkj]
+        q       += [Xkj]
+        lbq     += lb_x
+        ubq     += ub_x
+        q_0     += x_0
+    
+    Xk_next = col.D[0]*Xk
+    for j in range(1,d+1):
+        #       Build the right handside of h_k*f(t_k_j,x_k_j,u_k) =
+        #       sum(C_j_r*x_k_r) where sum(C_r_j*x_k_r) := x_dyn
+        x_dyn   = col.C[1,j]*Xk
+        for r in range(1,d+1):
+            x_dyn   = x_dyn + col.C[r,j]*Xc[r-1]
+        #       Evaluate collocation equations
+        fj, Lj  = f(Xc[j-1],Uk)
+        #       Add dynamics continuity constraint
+        g       += [h*fj - x_dyn]
+        lbg     += [0, 0]
+        ubg     += [0, 0]
+        #       Add the collocation contribution to integration of the end state
+        Xk_next = Xk_next + col.D[j]*Xc[j-1]
+        #       Add contribution to quadrature function
+        J       = J + col.B[j]*Lj*h
+        
     #       New NLP variable for the control   
     Xk          = MX.sym('X_' + str(k+1),2)
     q           += [Xk]
@@ -162,7 +181,6 @@ for k in range(N):
 #       Create a struct of the NLP with correct allocation to CasADi. Next create
 #       a nlpsolver that can solve the problem at hand
 nlp         = dict(f = J, x = vertcat(*q), g = vertcat(*g))
-#options     = dict('max_iter' = 20)
 opts        = {}
 if iter_max > 0:
     opts["ipopt"] = {"max_iter":iter_max}
@@ -172,9 +190,14 @@ q_opt       = sol['x'].full().flatten()
 
 indnx       = list(np.ones(nx))
 indnu       = list(np.zeros(nu))
-indx        = np.matlib.repmat(np.concatenate((indnx,indnu),axis=0),N,1).flatten() 
+indcol      = list(np.zeros(nx*d))
+indx        = np.matlib.repmat(np.concatenate((indnx,indnu,indcol),axis=0),N,1).flatten() 
 indx        = np.concatenate((indx, indnx),axis=0) > 0
-indu        = np.invert(indx)
+
+indnx       = list(np.zeros(nx))
+indnu       = list(np.ones(nu))
+indu        = np.matlib.repmat(np.concatenate((indnx,indnu,indcol),axis=0),N,1).flatten() 
+indu        = np.concatenate((indu, indnx),axis=0) > 0
 x_opt       = q_opt[indx].reshape(-1,2)
 phi_opt     = x_opt[:,0]
 omega_opt   = x_opt[:,1]
@@ -208,25 +231,6 @@ if var_save != 0:
 #        Plot 1 shows a animation of the object in motion
 #        Plot 2 shows the state trajectories as well as the control input
 #==============================================================================
-
-#plt.figure(1)
-#plt.clf()
-#
-#fig, axs    = plt.subplots()
-#fig         = plt.figure(1)
-#axs         = plt.axes(xlim=(-1, 1), ylim=(-1, 1))
-#
-#for i in range(N+1):
-#    phi         = phi_opt[k]
-#    th          = np.linspace(0,2*pi,100)
-#    xunit       = np.cos(th)
-#    yunit       = np.sin(th)
-#    axs.plot([0,np.sin(phi)],[0,np.cos(phi)], '-o', color='#000000')
-#    axs.plot(xunit,yunit)
-##    axs.set(xlim=(-1, 1), ylim=(-1, 1))
-#    axs.set_aspect('equal', 'box')
-#    plt.Circle((0,0),1)
-#    plt.show()
 
 if var_pl != 0:
     plt.figure(2)

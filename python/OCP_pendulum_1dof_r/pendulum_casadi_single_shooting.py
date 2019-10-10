@@ -7,11 +7,11 @@ Created on Wed Oct  2 12:50:04 2019
 """
 
 from casadi import *
+import os
 import numpy as np
 import numpy.matlib as ml
 import matplotlib.pyplot as plt
 import scipy.io as sio
-import matplotlib.animation as animation
 
 # =============================================================================
 #       Pendulum dynamics for state x = [phi, omega]' control u
@@ -21,15 +21,18 @@ import matplotlib.animation as animation
 # =============================================================================
 
 #       General Parameters
-var_pl      = 0
-var_save    = 0
+var_pl      = 1
+var_save    = 1
+name        = 'results_single_shooting'
+filename    = "%s/%s.mat" % (os.getcwd(),name)
+
 
 #       Simulation Parameters
 N           = 60
 h           = 0.2
 Tf          = N*h
 T           = np.arange(0,Tf+h,h)
-iter_max    = 50
+iter_max    = 0
 
 #       Initial Conditions (numerical)
 phi_0       = -pi
@@ -180,7 +183,8 @@ results['ub_u']     = ub_u
 results['lb_u']     = lb_u
 results['fval']     = sol['f'].full()
 
-sio.savemat('/tmp/mylog.mat', results)
+if var_save != 0:
+    sio.savemat(filename, results)
 
 #==============================================================================
 #        Plotting the results
@@ -207,11 +211,12 @@ sio.savemat('/tmp/mylog.mat', results)
 #    plt.Circle((0,0),1)
 #    plt.show()
 
-plt.figure(2)
-plt.clf()
-plt.plot(T,x_opt)
-plt.step(T,vertcat(DM.nan(1), u_opt))
-plt.show()
+if var_pl != 0:
+    plt.figure(2)
+    plt.clf()
+    plt.plot(T,x_opt)
+    plt.step(T,vertcat(DM.nan(1), u_opt))
+    plt.show()
 
 
 
