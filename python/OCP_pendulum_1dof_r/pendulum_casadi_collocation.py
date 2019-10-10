@@ -30,7 +30,7 @@ import functions as fn
 # =============================================================================
 
 #       General Parameters
-var_pl      = 1
+var_pl      = 0
 var_save    = 1
 name        = 'results_collocation'
 filename    = "%s/%s.mat" % (os.getcwd(),name)
@@ -151,7 +151,7 @@ for k in range(N):
     for j in range(1,d+1):
         #       Build the right handside of h_k*f(t_k_j,x_k_j,u_k) =
         #       sum(C_j_r*x_k_r) where sum(C_r_j*x_k_r) := x_dyn
-        x_dyn   = col.C[1,j]*Xk
+        x_dyn   = col.C[0,j]*Xk
         for r in range(1,d+1):
             x_dyn   = x_dyn + col.C[r,j]*Xc[r-1]
         #       Evaluate collocation equations
