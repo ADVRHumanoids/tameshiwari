@@ -10,13 +10,11 @@ if(${pybind11_FOUND})
 
     find_package(urdfdom REQUIRED)
     find_package(Boost REQUIRED COMPONENTS system)
-    find_package(casadi 3.5 REQUIRED)
+    # find_package(casadi 3.4 REQUIRED)
 
-    message(STATUS " ---- ${CASADI_LIBRARIES}")
 
     pybind11_add_module(pynocchio_casadi pynocchio_casadi.cpp)
     target_link_libraries(pynocchio_casadi PUBLIC
-        ${CASADI_LIBRARIES}
         /home/user/catkin_ws/install/lib/libcasadi.so
         ${urdfdom_LIBRARIES}
         ${Boost_LIBRARIES})

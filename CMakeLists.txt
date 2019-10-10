@@ -14,7 +14,6 @@ find_package(catkin REQUIRED COMPONENTS
 
 find_package(Eigen3 REQUIRED)
 
-find_package(casadi REQUIRED)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -170,6 +169,8 @@ target_link_libraries(parser
 # in contrast to setup.py, you can choose the destination
 install(PROGRAMS
     python/my_python_script.py
+    python/OCP_pendulum_1dof_r/pendulum_casadi_single_shooting.py
+    python/OCP_pendulum_2dof_rp/rp_robot_casadi_single_shooting.py
     DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
     )
 

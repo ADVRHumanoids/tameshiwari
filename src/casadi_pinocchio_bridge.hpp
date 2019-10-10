@@ -110,8 +110,12 @@ std::string generate_forward_kin(std::string urdf_string, std::string body_name)
     auto ee_rot = eigmat_to_cas(eig_fk_rot);
     casadi::Function FK("forward_kinematics", {q}, {ee_position, ee_rot}, {"q"}, {"ee_pos", "ee_rot"});
 
+     std::cout << "my function \n" << ee_position << std::endl;
+
     std::stringstream ss;
     ss << FK.serialize();
+
+    std::cout << "my function \n" << ss.str() << std::endl;
 
     return ss.str();
 }

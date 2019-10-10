@@ -29,7 +29,7 @@ N           = 60
 h           = 0.2
 Tf          = N*h
 T           = np.arange(0,Tf+h,h)
-iter_max    = 0
+iter_max    = 50
 
 #       Initial Conditions (numerical)
 phi_0       = -pi
@@ -211,6 +211,8 @@ plt.figure(2)
 plt.clf()
 plt.plot(T,x_opt)
 plt.step(T,vertcat(DM.nan(1), u_opt))
+plt.show()
+
 
 
 
