@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <robot name="rp_robot">
     
-    <!-- TO CHECK INERTIA PROPERTIES RUN: roslaunch robot_inertia_publisher robot_inertia_publisher.launch --> 
+    <!-- TO CHECK INERTIA PROPERTIES RUN roslaunch robot_inertia_publisher robot_inertia_publisher.launch --> 
 
     <material name="grey">
         <color rgba="0.5 0.5 0.5 1"/>

@@ -1,18 +1,31 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Thu Oct 10 14:56:05 2019
 
-@author: Paul Janssen
-"""
+#   This script is part of Tameshiwari Repository
+#   Git: https://github.com/ADVRHumanoids/tameshiwari.git
+#   Created by: Paul Janssen @ Istituto Italiano di Tecnologia
+#
+#   The script contains a number of useful functions and classes that are 
+#   through out the Tameshiwari repo. The script will be populated in a 
+#   continous way throughout the research period.
+#   
+
 
 from casadi import collocation_points
 import numpy as np
 
-class ReturnValue:
-  def __init__(self, B, C, D):
-     self.B = B
-     self.C = C
-     self.D = D
+class CollocationData:
+    def __init__(self, B, C, D):
+        self.B = B
+        self.C = C
+        self.D = D
+
+class RobotPose:
+    def __init__(self,name=['test'],q=[],qdot=[],tau=[],rate=10):
+        self.name   = name
+        self.q      = q
+        self.qdot   = qdot
+        self.tau    = tau
+        self.rate   = rate
 
 def collocation(d):
     #   from casadi import collocation_points
@@ -43,4 +56,4 @@ def collocation(d):
         pint = np.polyint(p)
         B[j] = pint(1.0)
 
-    return ReturnValue(B,C,D)
+    return CollocationData(B,C,D)

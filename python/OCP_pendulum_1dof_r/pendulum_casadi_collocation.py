@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Created on Wed Oct  2 12:50:04 2019
 
-@author: Paul Janssen
-"""
+
+#   This script is part of Tameshiwari Repository
+#   Git: https://github.com/ADVRHumanoids/tameshiwari.git
+#   Created by: Paul Janssen @ Istituto Italiano di Tecnologia
+#
+
 #==============================================================================
 #       Released packages
 #==============================================================================
