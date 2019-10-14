@@ -23,6 +23,7 @@ import scipy.io as sio
 #==============================================================================
 
 import functions as fn
+import joint_state as js
 
 # =============================================================================
 #       Pendulum dynamics for state x = [phi, omega]' control u
@@ -33,7 +34,8 @@ import functions as fn
 
 #       General Parameters
 var_pl      = 0
-var_save    = 1
+var_ani     = 1
+var_save    = 0
 name        = 'results_collocation'
 filename    = "%s/%s.mat" % (os.getcwd(),name)
 
@@ -63,7 +65,7 @@ lb_x        = [lb_phi,   lb_omega]
 ub_x        = [ub_phi,   ub_omega]
 
 #       Create the collocation matrices
-col         = fn.collocation(d)     # contains col.B col.C col.D
+col         = fn.ColMatrices(d)     # contains col.B col.C col.D
 
 # =============================================================================
 #       Integrate Dynamics --> DIRECT METHOD, FIRST INTEGRATE THEN OPTIMIZE
@@ -230,39 +232,33 @@ if var_save != 0:
 
 #==============================================================================
 #        Plotting the results
-#        Plot 1 shows a animation of the object in motion
-#        Plot 2 shows the state trajectories as well as the control input
+#        Plot 1 shows the state trajectories as well as the control input
 #==============================================================================
 
 if var_pl != 0:
-    plt.figure(2)
+    plt.figure(1)
     plt.clf()
     plt.plot(T,x_opt)
     plt.step(T,vertcat(DM.nan(1), u_opt))
     plt.show()
 
+#==============================================================================
+#       Animation the joint space trajectories
+#       Plot the trajectory using the 2DoF pendulum URDF 
+#       with the prismatic joint at 0.3m fixed position
+#==============================================================================
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-   
+if var_ani !=0:
+    nj      = 2
+    j_name  = []
+    for j in range(nj):
+        tmp     = "J%02d" %(j+1)
+        j_name.append(tmp)
+    
+    q_pl = np.zeros([N+1,2])
+    q_pl[:,0] = phi_opt + np.pi
+    qdot_pl = np.zeros([N+1,2])
+    qdot_pl[:,0] = omega_opt
+    pose = fn.RobotPose(j_name,q_pl,qdot_pl,[],int(1/h))
+    pose.interpolate(30)
+    js.posePublisher(pose)
