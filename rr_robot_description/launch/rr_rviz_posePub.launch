@@ -1,0 +1,13 @@
+<launch>
+    <param name="robot_description" textfile="$(find tameshiwari)/rr_robot_description/urdf/rr_robot.urdf" />
+
+    <!-- <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher">
+        <param name="use_gui" value="TRUE" />
+    </node> -->
+
+    <node name="robot_state_publisher" pkg="robot_state_publisher" type="state_publisher" >
+        <remap from="joint_states" to="pose_state" />
+    </node>
+
+    <node name="rviz" pkg="rviz" type="rviz" args=" -d $(find tameshiwari)/rr_robot_description/launch/config.rviz" />
+</launch>
