@@ -11,25 +11,7 @@
 import rospy
 from sensor_msgs.msg import JointState
 from std_msgs.msg import Header
-
-# def posePublisher(name=[],q=[],qdot=[],tau=[]):
-#     pub = rospy.Publisher('pose_state', JointState, queue_size=10)
-#     rospy.init_node('posePublisher', anonymous=True)
-#     rate = rospy.Rate(10) # 10hz
-    
-#     while not rospy.is_shutdown():
-#         state_str = JointState()
-#         state_str.header = Header()
-#         now = rospy.get_rostime()
-#         state_str.header.stamp.secs = now.secs
-#         state_str.header.stamp.nsecs = now.nsecs
-#         state_str.name = name
-#         state_str.position = q
-#         state_str.velocity = qdot
-#         state_str.effort = tau
-#         rospy.loginfo(state_str)
-#         pub.publish(state_str)
-#         rate.sleep()
+import numpy as np
 
 def posePublisher(pose):
     pub = rospy.Publisher('pose_state', JointState, queue_size=10)
@@ -45,9 +27,11 @@ def posePublisher(pose):
         state_str.header.stamp.nsecs = now.nsecs
         state_str.name = pose.name
         state_str.position = pose.q[iter,:]
-        state_str.velocity = pose.qdot
-        state_str.effort = pose.tau
-        rospy.loginfo(state_str)
+        if np.shape(pose.qdot)[0] > 1:
+            state_str.velocity = pose.qdot[iter,:]
+        if np.shape(pose.tau)[0] > 1:
+            state_str.effort = pose.tau[iter,:]
+        rospy.loginfo(state_str)            # use for debugging
         pub.publish(state_str)
         iter += 1
         rate.sleep()
