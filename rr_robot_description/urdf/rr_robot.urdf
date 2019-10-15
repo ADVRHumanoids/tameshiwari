@@ -79,7 +79,7 @@
     </link>
 
     <joint name="J02" type="revolute">
-        <origin xyz="0.27276731 0.1042208 0.08" rpy="0.0 0.0 0.0"/>
+        <origin xyz="0.27276731 0.1042208 0.08000" rpy="0.0 0.0 0.0"/>
         <parent link="L01"/>
         <child link="L02"/>
         <axis xyz="0.0 0.0 1.0"/>
