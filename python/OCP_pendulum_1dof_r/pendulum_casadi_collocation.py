@@ -34,7 +34,7 @@ import joint_state as js
 
 #       General Parameters
 var_pl      = 0
-var_ani     = 1
+var_ani     = 0
 var_save    = 0
 name        = 'results_collocation'
 filename    = "%s/%s.mat" % (os.getcwd(),name)
@@ -262,3 +262,5 @@ if var_ani !=0:
     pose = fn.RobotPose(j_name,q_pl,qdot_pl,[],int(1/h))
     pose.interpolate(30)
     js.posePublisher(pose)
+
+print 

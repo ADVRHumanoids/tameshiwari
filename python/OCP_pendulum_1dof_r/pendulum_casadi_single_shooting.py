@@ -21,8 +21,8 @@ import scipy.io as sio
 # =============================================================================
 
 #       General Parameters
-var_pl      = 1
-var_save    = 1
+var_pl      = 0
+var_save    = 0
 name        = 'results_single_shooting'
 filename    = "%s/%s.mat" % (os.getcwd(),name)
 

@@ -1,10 +1,15 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Created on Wed Oct  2 12:50:04 2019
 
-@author: Paul Janssen
-"""
+
+#   This script is part of Tameshiwari Repository
+#   Git: https://github.com/ADVRHumanoids/tameshiwari.git
+#   Created by: Paul Janssen @ Istituto Italiano di Tecnologia
+#
+
+#==============================================================================
+#       Released packages
+#==============================================================================
 
 from casadi import *
 import os
@@ -12,6 +17,13 @@ import numpy as np
 import numpy.matlib as ml
 import matplotlib.pyplot as plt
 import scipy.io as sio
+
+#==============================================================================
+#       Custom packages
+#==============================================================================
+
+import functions as fn
+import joint_state as js
 
 # =============================================================================
 #       Pendulum dynamics for state x = [phi, omega]' control u
@@ -21,11 +33,11 @@ import scipy.io as sio
 # =============================================================================
 
 #       General Parameters
-var_pl      = 1
-var_save    = 1
+var_pl      = 0
+var_ani     = 0
+var_save    = 0
 name        = 'results_multiple_shooting'
 filename    = "%s/%s.mat" % (os.getcwd(),name)
-
 
 #       Simulation Parameters
 N           = 60
@@ -75,6 +87,7 @@ L           = phi**2 + u**2
 #       time instance. This function will be looped over in a later part of the
 #       script.
 f           = Function('f',[x,u],[xdot,L])
+ODE         = Function('ODE',[x,u],[xdot],['x','u'],['xd'])
 X_0         = MX.sym('X_0',2)
 U           = MX.sym('U')
 #       MX variable is chosen because the function are evaluated many times
@@ -124,7 +137,6 @@ ubg         = []
 #       change during the iterations, they are not to be used as free variables,
 #       but rather as parameter variables.
 #==============================================================================
-Xk          = MX(x_0)
 
 Xk          = MX.sym('X0',2)                    # Define the initial condition as a variable
 q           += [Xk]                             # Fill the decision variable vector with first state elements
@@ -205,58 +217,38 @@ if var_save != 0:
 
 #==============================================================================
 #        Plotting the results
-#        Plot 1 shows a animation of the object in motion
-#        Plot 2 shows the state trajectories as well as the control input
+#        Plot 1 shows the state trajectories as well as the control input
 #==============================================================================
 
-#plt.figure(1)
-#plt.clf()
-#
-#fig, axs    = plt.subplots()
-#fig         = plt.figure(1)
-#axs         = plt.axes(xlim=(-1, 1), ylim=(-1, 1))
-#
-#for i in range(N+1):
-#    phi         = phi_opt[k]
-#    th          = np.linspace(0,2*pi,100)
-#    xunit       = np.cos(th)
-#    yunit       = np.sin(th)
-#    axs.plot([0,np.sin(phi)],[0,np.cos(phi)], '-o', color='#000000')
-#    axs.plot(xunit,yunit)
-##    axs.set(xlim=(-1, 1), ylim=(-1, 1))
-#    axs.set_aspect('equal', 'box')
-#    plt.Circle((0,0),1)
-#    plt.show()
-
 if var_pl != 0:
-    plt.figure(2)
+    plt.figure(1)
     plt.clf()
     plt.plot(T,x_opt)
     plt.step(T,vertcat(DM.nan(1), u_opt))
     plt.show()
 
+#==============================================================================
+#       Animation the joint space trajectories
+#       Plot the trajectory using the 2DoF pendulum URDF 
+#       with the prismatic joint at 0.3m fixed position
+#==============================================================================
+
+if var_ani !=0:
+    nj      = 2
+    j_name  = []
+    for j in range(nj):
+        tmp     = "J%02d" %(j+1)
+        j_name.append(tmp)
+    
+    q_pl = np.zeros([N+1,2])
+    q_pl[:,0] = phi_opt + np.pi
+    qdot_pl = np.zeros([N+1,2])
+    qdot_pl[:,0] = omega_opt
+    pose = fn.RobotPose(j_name,q_pl,qdot_pl,[],int(1/h))
+    pose.interpolate(30)
+    js.posePublisher(pose)
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-   
+print len(lbg)
