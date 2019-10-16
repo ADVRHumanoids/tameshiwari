@@ -7,17 +7,16 @@
 
 #==============================================================================
 #   SUMMARY:
-#   Here will be the first implementation of the Casadi Pinocchio bridge.
-#   We use the inverse dynamics to go from q,qdot,qddot to tau and put 
-#   proper bounds on tau (the joint torques). The optimal control problem
-#   will be solved using a direct multiple shooting (DMS) method. The
-#   continuity constraints will be imposed on q and qdot, calculated by 
-#   linear extrapolation (qdot_k+1 = qdot_k + h*qddot_k).
+#   This script is an extension of the rr_robot_min_torque.py where the
+#   objective is to minimize over time as well. That means the time-step
+#   of the solver is an optimization variable. Just a single extra variable
+#   meaning that it optimizes the duration of a single interval which duration
+#   is constant over all N-intervals.
 # 
 #   OBJECTIVE:
 #   The objective is to move the pendulum from the rest (hanging) position
 #   to the upward position with the least amount of torque used.
-#   The optimization objective is then minimize sum(dot(tau_k^T,tau_k)).
+#   The optimization objective is then minimize sum(h*sqrt(dot(tau_k^T,tau_k))).
 # 
 #   MODEL:
 #   The model is an 2 DoF double pendulum, similar to the CENTAURO arm
@@ -28,15 +27,6 @@
 # 
 #   [1]: https://ieeexplore.ieee.org/document/8630605
 #
-#   INVERSE DYNAMICS:
-#   State:
-#   x = [q_1, qdot_1, qddot_1, q_2, qdot_2, qddot2]'
-#   q = [q_1, q_2]' 
-#   qdot = [qdot_1, qdot_2]'
-#   qddot = [qddot_1, qddot_2]'
-#   Control:  
-#   tau = [tau_1, tau_2]
-#   M(q)qddot + C(q,qdot) + g(q) = tau
 #==============================================================================
 
 #==============================================================================
@@ -45,6 +35,7 @@
 
 from casadi import *
 import os
+import subprocess
 import numpy as np
 import numpy.matlib as ml
 import matplotlib.pyplot as plt
@@ -60,21 +51,70 @@ import joint_state as js
 import tameshiwari.pynocchio_casadi as pyn
 
 # =============================================================================
-#   PARAMETERS
+#   INITIALIZATION
 # =============================================================================
-
-#   GENERAL PARAMETERS
 var_pl      = 0
 var_ani     = 1
+var_rec     = 0
+var_inp     = 1
 var_save    = 0
 name = 'Res_DMS_minimize_torque'
 filename = "%s/%s.mat" % (os.getcwd(),name)
 
+# =============================================================================
+#   WEIGHTENING
+# =============================================================================
+#   DEFAULT VALUES
+W = 0.5
+W_h = 1.0
+W_tau = 1.0
+
+#   USER INPUTS
+if var_inp != 0:
+    print "================ USER INPUT ================"
+    usr_W = raw_input("Enter the torque reduction factor W between (0.1,1.0): ")
+    if usr_W != "":
+        try:
+            W = float(usr_W)
+            print "The following value was entered: %s" %W
+        except ValueError:
+            print "Nothing was entered, default value: %s" %W
+    print "================ USER INPUT ================"
+    usr_W_time = raw_input("Enter a weighting for minimizing T (0,1.0): ")
+    if usr_W != "":
+        try:
+            W_h = float(usr_W_time)
+            print "The following value was entered: %s" %W_h
+        except ValueError:
+            print "Nothing was entered, default value: %s" %W_h
+    print "================ USER INPUT ================"
+    usr_W_tau = raw_input("Enter a weighting for minimizing Torque (0,1.0): ")
+    if usr_W != "":
+        try:
+            W_tau = float(usr_W_tau)
+            print "The following value was entered: %s" %W_tau
+        except ValueError:
+            print "Nothing was entered, default value: %s" %W_tau
+
+    if W <= 0.1:
+        W = 0.1
+    elif W > 1.0:
+        W = 1.0
+    else:
+        pass
+
+# =============================================================================
+#   PARAMETERS
+# =============================================================================
+
 #   SIMULATION PARAMETERS
 N = 120
-h = 0.05
-Tf = N*h
-T = np.arange(0,Tf+h,h)
+h_0 = 0.02
+Tf = N*h_0
+Tf_max = 10.
+h_max = float(Tf_max/120)
+print h_max
+T = np.arange(0,Tf+h_0,h_0)
 T =  T.reshape(-1,1)
 iter_max = 0
 rviz_rate = 30
@@ -88,6 +128,8 @@ q_0 = np.zeros(nj).tolist()
 q_0_vec = np.zeros([N+1,nj])
 qdot_0 = np.zeros(nj).tolist()
 qddot_0 = np.zeros(nj).tolist()
+# qddot_0 = np.ones(nj,dtype=float)* 0.5
+# qddot_0 = qddot_0.tolist()
 
 #   TERMINAL CONDITIONS (NUMERICAL)
 offsetX = 0.0800682
@@ -112,6 +154,7 @@ ubqdot = [3.9, 6.1]
 lbqdot = [x*-1 for x in ubqdot]
 #   TORQUE BOUNDS
 ubtau = [147., 147.]
+ubtau = [x*W for x in ubtau]
 lbtau = [x*-1 for x in ubtau]
 #   ACCELERATION BOUNDS
 ubqddot = [inf, inf]
@@ -133,6 +176,13 @@ fk_string = pyn.generate_forward_kin(urdf,'EE')
 forKin = Function.deserialize(fk_string)
 
 # =============================================================================
+#   JACOBIAN OF END-EFFECTOR
+# =============================================================================
+
+jacEE_string = pyn.generate_jacobian(urdf,'EE')
+jacEE = Function.deserialize(jacEE_string)
+
+# =============================================================================
 #   NONLINEAR PROGRAM --> FIND A SOLUTION FOR THE OPTIMAL CONTROL INPUT
 # =============================================================================
 #   OPTIMIZATION VARIABLES
@@ -140,6 +190,11 @@ w = []
 w0 = []
 lbw = []
 ubw = []
+h = MX.sym('h')
+w += [h]
+w0 += [h_0]
+lbw = [0.001]
+ubw = [0.5]
 #   COST FUNCTION INITIALIZATION
 J = 0
 #   INEQUALITY CONSTRAINT
@@ -187,9 +242,16 @@ for k in range(N):
     lbg += lbtau
     ubg += ubtau
 
+    #   NORMALIZE TAU AND H
+    h_norm = (1/h_max) * h
+    tau_k_norm = 1/np.array(ubtau) * tauk
+
     #   INTEGRAL COST CONTRIBUTION
-    L = dot(tauk,tauk) + dot(qk,qk)
-    L = dot(tauk,tauk)
+    # L = dot(tauk,tauk) + dot(qk,qk)
+    # L = dot(tauk,tauk)
+    L = W_h * h_norm + W_tau * dot(tau_k_norm,tau_k_norm)
+    # L = norm_2(tauk)
+    # L = h*sqrt(dot(tauk,tauk))
     # L = dot(qk,qk)
     J += L
 
@@ -212,16 +274,24 @@ for k in range(N):
     lbg += np.zeros(nj*2).tolist()
     ubg += np.zeros(nj*2).tolist()
 
-#   TERMINAL CONSTRAINT
-EE_pos_k = forKin(q=qk)['ee_pos']
-g += [EE_pos_k - EE_pos_N]
-lbg += np.zeros(3).tolist()
-ubg += np.zeros(3).tolist()
-
 #   TERMINAL COST 
-E = dot(qk,qk)
+# E = dot(qk,qk)
 E = 0
 J += E
+
+#   TERMINAL CONSTRAINTS:
+#   TERMINAL POSITION CONSTRAINT 
+EE_pos_k = forKin(q=qk)['ee_pos']
+dist = norm_fro(EE_pos_k - EE_pos_N)
+g += [dist]
+lbg += [-inf]
+ubg += [0.01]
+#   TERMINAL VELOCITY CONSTRAINT
+jacEE_k = jacEE(q=qk)['J']
+EE_vel_k = mtimes(jacEE_k,qdotk)
+g += [EE_vel_k]
+lbg += np.zeros(6).tolist()
+ubg += np.zeros(6).tolist()
 
 # =============================================================================
 #   SOLVER CREATOR AND SOLUTION
@@ -249,9 +319,12 @@ for i in range(nq):
         indexer = np.concatenate((indexer,tmp),axis=1)
 
 w_opt = sol['x'].full()
+h_opt = w_opt[0]
+w_opt = w_opt[1:]
 q_opt = w_opt[indexer[:,0]].reshape(-1,nj)
 qdot_opt = w_opt[indexer[:,1]].reshape(-1,nj)
 qddot_opt = w_opt[indexer[:,2]].reshape(-1,nj)
+# h_opt = h_0
 
 g_opt = sol['g'].full()
 tau_opt = g_opt[tau_ind].reshape(-1,nj)
@@ -279,31 +352,44 @@ for j in range(N+1):
 
 if var_pl != 0:
     plt.figure(1)
-    plt.clf()
+    plt.subplot(2,2,1)
+    # plt.clf()
     plt.plot(T,q_opt)
     plt.plot(T,qdot_opt)
     plt.legend(('q_J00','q_J01','qdot_J00','qdot_J01'))
-    plt.show()
+    plt.show(block=False)
+    # plt.show()
 
+    
+    # plt.figure(2)
+    plt.subplot(2,2,2)
+    # plt.clf()
+    plt.step(T,np.vstack((DM.nan(1,nj).full(),tau_opt)))
+    tau_lim = np.matlib.repmat(ubtau,N+1,1)
+    plt.plot(T,tau_lim)
+    plt.plot(T,-tau_lim)
+    plt.legend(('tau_J00','tau_J01'))
+    plt.show(block=False)    
+    # plt.show()
+
+    # plt.figure(3)
+    plt.subplot(2,2,3)
+    # plt.clf()
+    # plt.plot(xyz[:,0],xyz[:,1])
+    plt.scatter(xyz[:,1],xyz[:,2])
+    # plt.show()
+    plt.show(block=False)
+
+    # plt.figure(4)
+    plt.subplot(2,2,4)
+    # plt.clf()
     fval = np.zeros([N+1])
     for k in range(1,N+1):
         # fval[k] = dot(tau_opt[k-1,:],tau_opt[k-1,:])
-        fval[k] = mtimes(tau_opt[k-1,:].reshape(1,-1),tau_opt[k-1,:])
-    plt.figure(2)
-    plt.clf()
-    plt.step(T,np.vstack((DM.nan(1,nj).full(),tau_opt)))
-    tau_lim = np.matlib.repmat(ubtau,N+1,1)
+        fval[k] = h_opt*mtimes(tau_opt[k-1,:].reshape(1,-1),tau_opt[k-1,:])
     plt.plot(T,fval)
-    plt.plot(T,tau_lim)
-    plt.plot(T,-tau_lim)
-    plt.legend(('tau_J00','tau_J01','fval'))
-    plt.show()
-
-    plt.figure(3)
-    plt.clf()
-    # plt.plot(xyz[:,0],xyz[:,1])
-    plt.scatter(xyz[:,1],xyz[:,2])
-    plt.show()
+    plt.legend(('fval'))
+    plt.show(block=False)
 
 #==============================================================================
 #   ANIMATING THE RESULTS WITH RVIZ
@@ -322,9 +408,30 @@ if var_ani !=0:
     # print np.shape(qddot_opt)
     # print np.shape(tau_opt)
 
-    pose = fn.RobotPose(j_name,q_opt,qdot_opt,tau_opt,int(1/h))
+    
+    pose = fn.RobotPose(j_name,q_opt,qdot_opt,tau_opt,int(1/h_opt))
     # pose.interpolate(rviz_rate)
-    js.posePublisher(pose)
+    if var_rec !=0:
+        # os.system("ffmpeg -f x11grab -s 1900x1080 -r 25 -i :0.0 -qscale 5 ~/screenGrab.mpeg")
+        # subprocess.call(['ffmpeg','-f','x11grab','-s','1900x1080','r','25','i',':0.0','-qscale','5','screenGrab.mpeg'])
+        # subprocess.call("ffmpeg -f x11grab -s 1900x1080 -r 25 -i :0.0 -qscale 5 ~/screenGrab.mpeg", shell=True)
+        # subproc = subprocess.Popen("ffmpeg -f x11grab -s 1900x1080 -r 25 -i :0.0 -qscale 5 screenGrab.mpeg", shell=True)
+        js.posePublisher(pose)
+        # subproc.kill()
+        # os.system("q")
+    else:
+        js.posePublisher(pose)  
+    
+
+#==============================================================================
+#   DEBUGGING AREA
+#==============================================================================
 
 
-# print sol
+
+
+#==============================================================================
+#   KEEPING PLOTS OPEN
+#==============================================================================
+if var_pl != 0:
+    plt.show()
