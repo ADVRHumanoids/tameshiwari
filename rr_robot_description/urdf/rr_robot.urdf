@@ -120,27 +120,27 @@
     </link>
 
     <joint name="J03" type="fixed">
-        <origin xyz="0.435 0.0 0.0" rpy="0.0 0.0 0.0"/>
+        <origin xyz="0.505184 0.0 0.0" rpy="0.0 0.0 0.0"/>
         <parent link="L02"/>
         <child link="EE"/>
     </joint>
 
     <link name="EE">
         <visual>
-            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <origin xyz="-0.070184 0.0 0.0" rpy="0.0 0.0 0.0"/>
             <geometry>
                 <mesh filename="package://tameshiwari/rr_robot_description/meshes/RR_EE.stl" scale="1 1 1"/>
             </geometry>
             <material name="black" />
         </visual>
         <collision>
-            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <origin xyz="-0.070184 0.0 0.0" rpy="0.0 0.0 0.0"/>
             <geometry>
                 <mesh filename="package://tameshiwari/rr_robot_description/meshes/RR_EE.stl" scale="1 1 1"/>
             </geometry>
         </collision>
         <inertial>
-            <origin xyz="0.070184 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
             <mass value="10.000"/>
             <inertia ixx="1.733e-2" ixy="0.0" ixz="0.0" iyy="1.939e-2" iyz="1.939e-2" izz="0.0"/>
         </inertial>
