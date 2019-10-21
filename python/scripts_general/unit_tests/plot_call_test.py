@@ -29,23 +29,19 @@ import numpy as np
 import numpy.matlib
 import os
 from datetime import datetime
+from cycler import cycler
 
 # plt.style.use("ggplot")
 
-# t = np.arange(0.0, 2.0, 0.1)
-# t = np.matlib.linspace(0.0,2.0,101)
-# s = np.sin(2 * np.pi * t)
-# s2 = np.cos(2 * np.pi * t)
-# plt.plot(t, s, "o-", lw=4.1)
-# plt.plot(t, s2, "o-", lw=4.1)
-# plt.xlabel("time (s)")
-# plt.ylabel("Voltage (mV)")
-# plt.title("Simple plot $\\frac{\\alpha}{2}$")
-# plt.grid(True)
-# plt.show()
-# import matplotlib2tikz
-# str_time = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
-# matplotlib2tikz.save("test__" + str_time + ".tex")
-
-test123 = ['q_J00','q_J01']
-print type(test123)
+prop_cycle = plt.rcParams
+print prop_cycle
+prop_cycle = plt.rcParams['axes.prop_cycle']
+print prop_cycle
+colors = prop_cycle.by_key()['color']
+print colors
+print type(colors)
+colors.extend(colors)
+print colors
+plt.rc('axes',prop_cycle=(cycler(color=colors)))
+prop_cycle = plt.rcParams['axes.prop_cycle']
+print prop_cycle
