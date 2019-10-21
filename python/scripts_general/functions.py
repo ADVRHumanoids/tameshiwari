@@ -18,6 +18,13 @@ import scipy.io as sio
 from datetime import datetime
 import os
 import __main__ as main
+from cycler import cycler
+
+#   COLORMAP
+prop_cycle = plt.rcParams['axes.prop_cycle']
+colors = prop_cycle.by_key()['color']
+colors.extend(colors)
+plt.rc('axes',prop_cycle=(cycler(color=colors)))
 
 class ColMatrices:
     def __init__(self,d):
@@ -70,7 +77,6 @@ class SolverParam:
         str_time = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
         fileName = "%s/%s%s_%s.mat" % (dirName,suffix,fileName,str_time)
         sio.savemat(fileName,self.dict)
-
 
 class RobotPose:
     def __init__(self,name='',q=np.array([]),qdot=np.array([]),tau=np.array([]),rate=10.,qddot=np.array([])):
@@ -187,7 +193,7 @@ class RobotPose:
         fileName = "%s/%s%s_%s%s" % (dirName,suffix,fileName,str_time,ext)
         matplotlib2tikz.save(fileName)
 
-    def plot_q(self,show=True,save=False,title=True,grid=True,legend_str='',block=True):
+    def plot_q(self,show=True,save=False,title=True,grid=True,legend_str='',block=True,lb=[],ub=[],limits=False):
         fig, ax = plt.subplots()
         ax.plot(self.T,self.q)
 
@@ -206,7 +212,7 @@ class RobotPose:
         if save:
             self.savePlot(suffix='Plot_q_')
 
-    def plot_qdot(self,show=True,save=False,title=True,grid=True,legend_str='',block=True):
+    def plot_qdot(self,show=True,save=False,title=True,grid=True,legend_str='',block=True,lb=[],ub=[],limits=False):
         fig, ax = plt.subplots()
         ax.plot(self.T,self.qdot)
 
@@ -225,7 +231,7 @@ class RobotPose:
         if save:
             self.savePlot(suffix='Plot_qdot_')
 
-    def plot_qddot(self,show=True,save=False,title=True,grid=True,legend_str='',block=True):
+    def plot_qddot(self,show=True,save=False,title=True,grid=True,legend_str='',block=True,lb=[],ub=[],limits=False):
         fig, ax = plt.subplots()
         ax.plot(self.T,self.qddot)
 
@@ -244,11 +250,17 @@ class RobotPose:
         if save:
             self.savePlot(suffix='Plot_qddot_')
 
-    def plot_tau(self,show=True,save=False,title=True,grid=True,legend_str='',block=True):
+    def plot_tau(self,show=True,save=False,title=True,grid=True,legend_str='',block=True,lb=[],ub=[],limits=False):
         fig, ax = plt.subplots()
         tau_plot = np.vstack((self.tau,self.tau[-1,:]))
         tau_plot[0,:] = DM.nan(1,self.nj).full()
-        ax.step(self.T,tau_plot)
+        # ax.step(self.T,tau_plot)
+        ax.step(self.T,self.tau)
+        for i in range(self.nj):
+            # ax.plot(T,)
+            ax.step(self.T,ub[:,i], where='post', color=colors[i], linestyle='dashed')
+            ax.step(self.T,lb[:,i], where='post', color=colors[i], linestyle='dashed')
+            # pass
 
         ax.set_xlabel("time [s]")
         ax.set_ylabel("$\\tau$ [Nm]")
@@ -260,7 +272,38 @@ class RobotPose:
             for i in range(self.nj):
                 legend_str += ["$\\tau_{%s}$" % (i+1)]
         ax.legend(legend_str)
+        ax.set_xlim(0,self.Tf)
         if show:
             plt.show(block)
         if save:
             self.savePlot(suffix='Plot_tau_')
+    
+    def plot_joint(self,joint=1,nq=1,show=True,save=False,title=True,grid=True,legend_str='',block=True,lb=[],ub=[],limits=False):
+        index = joint - 1
+        title_str = "Joint %s states" % joint
+
+        fig, ax = plt.subplots()
+        if nq >= 1:
+            ax.plot(self.T,self.q[:,index])
+        if nq >= 2:
+            ax.plot(self.T,self.qdot[:,index])
+        if nq >= 3:
+            ax.plot(self.T,self.qddot[:,index])
+
+        ax.set_xlabel("time [s]")
+        if title:
+            ax.set_title(title_str) 
+        ax.grid(grid)
+        if not legend_str:
+            legend_str = []
+            legend_str += ["$q_{%s}$" % joint]
+            legend_str += ["$\\dot{q}_{%s}$" % joint]
+            legend_str += ["$\\ddot{q}_{%s}$" % joint]
+            legend_str = legend_str[:nq]
+        ax.legend(legend_str)
+        if show:
+            plt.show(block)
+        if save:
+            self.savePlot(suffix='Plot_q_')
+
+    
