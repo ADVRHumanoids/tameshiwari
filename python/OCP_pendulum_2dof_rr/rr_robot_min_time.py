@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 #   This script is part of Tameshiwari Repository
@@ -7,8 +6,8 @@
 
 #==============================================================================
 #   SUMMARY:
-#   This script is an extension of the rr_robot_min_torque.py where the
-#   objective is to minimize over time as well. That means the time-step
+#   This script is an replacement of the rr_robot_min_torque.py where the
+#   objective is to minimize over time. That means the time-step
 #   of the solver is an optimization variable. Just a single extra variable
 #   meaning that it optimizes the duration of a single interval which duration
 #   is constant over all N-intervals.
@@ -53,11 +52,11 @@ import tameshiwari.pynocchio_casadi as pyn
 # =============================================================================
 #   PARAMETERS
 # =============================================================================
-
 #   GENERAL PARAMETERS
 var_pl      = 0
-var_ani     = 1
+var_ani     = 0
 var_rec     = 0
+var_inp     = 0
 var_save    = 0
 name = 'Res_DMS_minimize_torque'
 filename = "%s/%s.mat" % (os.getcwd(),name)
@@ -105,15 +104,24 @@ ubq = np.deg2rad(ubq_deg).tolist()
 ubqdot = [3.9, 6.1]
 lbqdot = [x*-1 for x in ubqdot]
 #   TORQUE BOUNDS
-print "================ USER INPUT ================"
-usr_W = input ("Enter the torque reduction factor W between (0.1,1.0): ")
-W = float(usr_W)
-if W <= 0.1:
-    W = 0.1
-elif W > 1.0:
-    W = 1.0
-else:
-    pass
+W = 0.5
+if var_inp != 0:
+    print "================ USER INPUT ================"
+    usr_W = raw_input("Enter the torque reduction factor W between (0.1,1.0): ")
+    if usr_W != "":
+        try:
+            W = float(usr_W)
+            print "The following value was entered: %s" %W
+        except ValueError:
+            print "Nothing was entered, default value: %s" %W
+
+    if W <= 0.1:
+        W = 0.1
+    elif W > 1.0:
+        W = 1.0
+    else:
+        pass
+
 ubtau = [147., 147.]
 ubtau = [x*W for x in ubtau]
 lbtau = [x*-1 for x in ubtau]
@@ -391,6 +399,3 @@ if var_ani !=0:
 #   KEEPING PLOTS OPEN
 #==============================================================================
 plt.show()
-
-
-print W

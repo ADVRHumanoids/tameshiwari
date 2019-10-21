@@ -10,8 +10,14 @@
 #   
 
 from casadi import collocation_points
+from casadi import DM
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib2tikz
+import scipy.io as sio
+from datetime import datetime
+import os
+import __main__ as main
 
 class ColMatrices:
     def __init__(self,d):
@@ -41,18 +47,45 @@ class ColMatrices:
             pint = np.polyint(p)
             self.B[j] = pint(1.0)
 
+class SolverParam:
+    def __init__(self,stats={},N=0,h=0,T=[],Tf=0,fval=0):
+        self.dict = {
+            'N': N, 'h': h,
+            'T': T.flatten(), 'Tf': Tf, 
+            'fval': fval,
+            'nIter': stats['iter_count'],
+            'retStat': stats['return_status'],
+            'stats': stats
+        }
+
+    def saveMat(self,dirName='',fileName='',suffix='SolverParam_'):
+        if not dirName:
+            dirName = os.getcwd() + '/results'
+        if not os.path.isdir(dirName):
+            os.mkdir(dirName)
+        if not fileName:
+            fileName = os.path.basename(main.__file__)
+        if ".py" in fileName:
+            fileName, file_ext = os.path.splitext(fileName)
+        str_time = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+        fileName = "%s/%s%s_%s.mat" % (dirName,suffix,fileName,str_time)
+        sio.savemat(fileName,self.dict)
+
+
 class RobotPose:
-    def __init__(self,name=[],q=np.array([]),qdot=np.array([]),tau=np.array([]),rate=10.):
+    def __init__(self,name='',q=np.array([]),qdot=np.array([]),tau=np.array([]),rate=10.,qddot=np.array([])):
         # Make sure q, qdot, tau are matrices of N x nj
         # N is number of samples and nj is number of joints
-        self.name   = name
-        self.q      = q
-        self.qdot   = qdot
-        self.tau    = tau
-        self.rate   = float(rate)
-        self.nj     = 1         # default number of joints = 1
-        # print self.rate
-        
+        # self has: name, q, qdot, qddot, tau, rate, nj,
+        #       N, Tf, T
+        self.name = name
+        self.q = q
+        self.qdot = qdot
+        self.qddot = qddot
+        self.tau = tau
+        self.rate = float(rate)
+        self.nj = 1         # default number of joints = 1
+
         # Determine the amount of time samples and final time
         if np.shape(self.q)[0] > 1:
             self.N = np.shape(self.q)[0]
@@ -62,6 +95,11 @@ class RobotPose:
         # Determine the number of joints dependent on q
         if np.ndim(self.q) > 1 and np.shape(self.q)[1] > 1:      
             self.nj = np.shape(self.q)[1]
+            if not self.name:
+                self.name = []
+                for j in range(self.nj):
+                    tmp = "J%02d" %(j+1)
+                    self.name.append(tmp)
         
     def interpolate(self,drate,method=''):
         # This function interpolates the known trajectory and adds more intermediate
@@ -116,7 +154,113 @@ class RobotPose:
             self.rate = drate
             self.N = N_new
 
+    def saveMat(self,dirName='',fileName='',suffix='RobotPose_'):
+        if not dirName:
+            dirName = os.getcwd() + '/results'
+        if not os.path.isdir(dirName):
+            os.mkdir(dirName)
+        if not fileName:
+            fileName = os.path.basename(main.__file__)
+        if ".py" in fileName:
+            fileName, file_ext = os.path.splitext(fileName)
+        saveDict = {
+            'name':self.name,
+            'q':self.q,
+            'qdot':self.qdot,
+            'qddot':self.qddot,
+            'tau':self.tau
+        }
+        str_time = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+        fileName = "%s/%s%s_%s.mat" % (dirName,suffix,fileName,str_time)
+        sio.savemat(fileName,saveDict)
+    
+    def savePlot(self,dirName='',fileName='',suffix='Plot_',ext='.tex'):
+        if not dirName:
+            dirName = os.getcwd() + '/plots'
+        if not os.path.isdir(dirName):
+            os.mkdir(dirName)
+        if not fileName:
+            fileName = os.path.basename(main.__file__)
+        if ".py" in fileName:
+            fileName, file_ext = os.path.splitext(fileName)
+        str_time = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+        fileName = "%s/%s%s_%s%s" % (dirName,suffix,fileName,str_time,ext)
+        matplotlib2tikz.save(fileName)
 
-            
+    def plot_q(self,show=True,save=False,title=True,grid=True,legend_str='',block=True):
+        fig, ax = plt.subplots()
+        ax.plot(self.T,self.q)
 
-        
+        ax.set_xlabel("time [s]")
+        ax.set_ylabel("$\\theta$ [rad]")
+        if title:
+            ax.set_title("Angular joint positions")
+        ax.grid(grid)
+        if not legend_str:
+            legend_str = []
+            for i in range(self.nj):
+                legend_str += ["$q_{%s}$" % (i+1)]
+        ax.legend(legend_str)
+        if show:
+            plt.show(block)
+        if save:
+            self.savePlot(suffix='Plot_q_')
+
+    def plot_qdot(self,show=True,save=False,title=True,grid=True,legend_str='',block=True):
+        fig, ax = plt.subplots()
+        ax.plot(self.T,self.qdot)
+
+        ax.set_xlabel("time [s]")
+        ax.set_ylabel("$\\dot{\\theta}$ [rad/s]")
+        if title:
+            ax.set_title("Angular joint velocities")
+        ax.grid(grid)
+        if not legend_str:
+            legend_str = []
+            for i in range(self.nj):
+                legend_str += ["$\\dot{q}_{%s}$" % (i+1)]
+        ax.legend(legend_str)
+        if show:
+            plt.show(block)
+        if save:
+            self.savePlot(suffix='Plot_qdot_')
+
+    def plot_qddot(self,show=True,save=False,title=True,grid=True,legend_str='',block=True):
+        fig, ax = plt.subplots()
+        ax.plot(self.T,self.qddot)
+
+        ax.set_xlabel("time [s]")
+        ax.set_ylabel("$\\ddot{\\theta}$ [rad/s$^2$]")
+        if title:
+            ax.set_title("Angular joint accelerations")
+        ax.grid(grid)
+        if not legend_str:
+            legend_str = []
+            for i in range(self.nj):
+                legend_str += ["$\\ddot{q}_{%s}$" % (i+1)]
+        ax.legend(legend_str)
+        if show:
+            plt.show(block)
+        if save:
+            self.savePlot(suffix='Plot_qddot_')
+
+    def plot_tau(self,show=True,save=False,title=True,grid=True,legend_str='',block=True):
+        fig, ax = plt.subplots()
+        tau_plot = np.vstack((self.tau,self.tau[-1,:]))
+        tau_plot[0,:] = DM.nan(1,self.nj).full()
+        ax.step(self.T,tau_plot)
+
+        ax.set_xlabel("time [s]")
+        ax.set_ylabel("$\\tau$ [Nm]")
+        if title:
+            ax.set_title("Joint effort")
+        ax.grid(grid)
+        if not legend_str:
+            legend_str = []
+            for i in range(self.nj):
+                legend_str += ["$\\tau_{%s}$" % (i+1)]
+        ax.legend(legend_str)
+        if show:
+            plt.show(block)
+        if save:
+            self.savePlot(suffix='Plot_tau_')

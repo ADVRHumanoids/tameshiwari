@@ -41,6 +41,7 @@ import numpy.matlib as ml
 import matplotlib.pyplot as plt
 import scipy.io as sio
 import rospy
+from datetime import datetime
 
 #==============================================================================
 #   CUSTOM PACKAGES
@@ -53,13 +54,11 @@ import tameshiwari.pynocchio_casadi as pyn
 # =============================================================================
 #   INITIALIZATION
 # =============================================================================
-var_pl      = 0
-var_ani     = 1
+var_pl      = 1
+var_ani     = 0
 var_rec     = 0
-var_inp     = 1
+var_inp     = 0
 var_save    = 0
-name = 'Res_DMS_minimize_torque'
-filename = "%s/%s.mat" % (os.getcwd(),name)
 
 # =============================================================================
 #   WEIGHTENING
@@ -328,6 +327,7 @@ qddot_opt = w_opt[indexer[:,2]].reshape(-1,nj)
 
 g_opt = sol['g'].full()
 tau_opt = g_opt[tau_ind].reshape(-1,nj)
+tau_plot = np.vstack((tau_opt,tau_opt[-1,:]))
 
 #==============================================================================
 #   RETRIEVE CONFIGURATION TRAJECTORY
@@ -338,10 +338,16 @@ for j in range(N+1):
     xyz[j,:] = forKin(q=q_opt[j,:])['ee_pos'].full().reshape(-1,3)
 
 #==============================================================================
-#   Saving variables to file
+#   CREATE SOLVERPARAM & ROBOTPOSE CLASSES, THEN SAVE TO FILE IF DESIRED
 #==============================================================================
 
 # CREATE A CLASS FOR THIS WHERE WE STORE Q,QDOT,QDDOT,TAU AND ALL THE OPTIMIZER STUFF
+solver_param = fn.SolverParam(solver.stats(),N,h_opt,T,Tf,sol['f'].full())
+pose = fn.RobotPose(q=q_opt,qdot=qdot_opt,qddot=qddot_opt,tau=tau_opt,rate=int(1/h_opt))
+
+if var_save != 0:
+    solver_param.saveMat()
+    pose.saveMat()
 
 #==============================================================================
 #   PLOTTING THE RESULTS
@@ -350,46 +356,53 @@ for j in range(N+1):
 #   Plot 3 shows the trajectory in the yz-plane
 #==============================================================================
 
-if var_pl != 0:
-    plt.figure(1)
-    plt.subplot(2,2,1)
-    # plt.clf()
-    plt.plot(T,q_opt)
-    plt.plot(T,qdot_opt)
-    plt.legend(('q_J00','q_J01','qdot_J00','qdot_J01'))
-    plt.show(block=False)
-    # plt.show()
+pose.plot_q(show=True,save=True,title=False,block=False)
+pose.plot_qdot(show=True,save=True,title=False,block=False)
+pose.plot_qddot(show=True,save=True,title=False,block=False)
+pose.plot_tau(show=True,save=True,title=False,block=False)
+
+
+if var_pl != 100:
+    # plt.figure(1)
+    # plt.subplot(2,2,1)
+    # # plt.clf()
+    # plt.plot(T,q_opt)
+    # plt.plot(T,qdot_opt)
+    # plt.legend(('q_J00','q_J01','qdot_J00','qdot_J01'))
+    # plt.show(block=False)
+    # # plt.show()
 
     
-    # plt.figure(2)
-    plt.subplot(2,2,2)
-    # plt.clf()
-    plt.step(T,np.vstack((DM.nan(1,nj).full(),tau_opt)))
-    tau_lim = np.matlib.repmat(ubtau,N+1,1)
-    plt.plot(T,tau_lim)
-    plt.plot(T,-tau_lim)
-    plt.legend(('tau_J00','tau_J01'))
-    plt.show(block=False)    
-    # plt.show()
+    # # plt.figure(2)
+    # plt.subplot(2,2,2)
+    # # plt.clf()
+    # plt.step(T,np.vstack((DM.nan(1,nj).full(),tau_opt)))
+    # tau_lim = np.matlib.repmat(ubtau,N+1,1)
+    # plt.plot(T,tau_lim)
+    # plt.plot(T,-tau_lim)
+    # plt.legend(('tau_J00','tau_J01'))
+    # plt.show(block=False)    
+    # # plt.show()
 
-    # plt.figure(3)
-    plt.subplot(2,2,3)
-    # plt.clf()
-    # plt.plot(xyz[:,0],xyz[:,1])
-    plt.scatter(xyz[:,1],xyz[:,2])
-    # plt.show()
-    plt.show(block=False)
+    # # plt.figure(3)
+    # plt.subplot(2,2,3)
+    # # plt.clf()
+    # # plt.plot(xyz[:,0],xyz[:,1])
+    # plt.scatter(xyz[:,1],xyz[:,2])
+    # # plt.show()
+    # plt.show(block=False)
 
-    # plt.figure(4)
-    plt.subplot(2,2,4)
-    # plt.clf()
-    fval = np.zeros([N+1])
-    for k in range(1,N+1):
-        # fval[k] = dot(tau_opt[k-1,:],tau_opt[k-1,:])
-        fval[k] = h_opt*mtimes(tau_opt[k-1,:].reshape(1,-1),tau_opt[k-1,:])
-    plt.plot(T,fval)
-    plt.legend(('fval'))
-    plt.show(block=False)
+    # # plt.figure(4)
+    # plt.subplot(2,2,4)
+    # # plt.clf()
+    # fval = np.zeros([N+1])
+    # for k in range(1,N+1):
+    #     # fval[k] = dot(tau_opt[k-1,:],tau_opt[k-1,:])
+    #     fval[k] = h_opt*mtimes(tau_opt[k-1,:].reshape(1,-1),tau_opt[k-1,:])
+    # plt.plot(T,fval)
+    # plt.legend(('fval'))
+    # plt.show(block=False)
+    pass
 
 #==============================================================================
 #   ANIMATING THE RESULTS WITH RVIZ
@@ -402,15 +415,7 @@ if var_ani !=0:
         tmp     = "J%02d" %(j+1)
         j_name.append(tmp)
 
-    tau_opt = np.vstack((tau_opt,tau_opt[-1,:]))
-    # print np.shape(q_opt)
-    # print np.shape(qdot_opt)
-    # print np.shape(qddot_opt)
-    # print np.shape(tau_opt)
-
-    
     pose = fn.RobotPose(j_name,q_opt,qdot_opt,tau_opt,int(1/h_opt))
-    # pose.interpolate(rviz_rate)
     if var_rec !=0:
         # os.system("ffmpeg -f x11grab -s 1900x1080 -r 25 -i :0.0 -qscale 5 ~/screenGrab.mpeg")
         # subprocess.call(['ffmpeg','-f','x11grab','-s','1900x1080','r','25','i',':0.0','-qscale','5','screenGrab.mpeg'])
