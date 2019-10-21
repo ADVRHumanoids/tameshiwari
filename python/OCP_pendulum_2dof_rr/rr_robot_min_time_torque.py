@@ -54,11 +54,11 @@ import tameshiwari.pynocchio_casadi as pyn
 # =============================================================================
 #   INITIALIZATION
 # =============================================================================
-var_pl      = 1
-var_ani     = 0
-var_rec     = 0
-var_inp     = 0
-var_save    = 0
+var_pl      = True
+var_ani     = True
+var_rec     = False
+var_inp     = False
+var_save    = False
 
 # =============================================================================
 #   WEIGHTENING
@@ -69,7 +69,7 @@ W_h = 1.0
 W_tau = 1.0
 
 #   USER INPUTS
-if var_inp != 0:
+if var_inp:
     print "================ USER INPUT ================"
     usr_W = raw_input("Enter the torque reduction factor W between (0.1,1.0): ")
     if usr_W != "":
@@ -327,7 +327,8 @@ qddot_opt = w_opt[indexer[:,2]].reshape(-1,nj)
 
 g_opt = sol['g'].full()
 tau_opt = g_opt[tau_ind].reshape(-1,nj)
-tau_plot = np.vstack((tau_opt,tau_opt[-1,:]))
+tau_opt = np.vstack((tau_opt,tau_opt[-1,:]))
+tau_opt[0,:] = DM.nan(1,nj).full()
 
 #==============================================================================
 #   RETRIEVE CONFIGURATION TRAJECTORY
@@ -345,89 +346,34 @@ for j in range(N+1):
 solver_param = fn.SolverParam(solver.stats(),N,h_opt,T,Tf,sol['f'].full())
 pose = fn.RobotPose(q=q_opt,qdot=qdot_opt,qddot=qddot_opt,tau=tau_opt,rate=int(1/h_opt))
 
-if var_save != 0:
+if var_save:
     solver_param.saveMat()
     pose.saveMat()
-
-#==============================================================================
-#   PLOTTING THE RESULTS
-#   Plot 1 shows the state trajectories
-#   Plot 2 show torque values
-#   Plot 3 shows the trajectory in the yz-plane
-#==============================================================================
-
-pose.plot_q(show=True,save=True,title=False,block=False)
-pose.plot_qdot(show=True,save=True,title=False,block=False)
-pose.plot_qddot(show=True,save=True,title=False,block=False)
-pose.plot_tau(show=True,save=True,title=False,block=False)
-
-
-if var_pl != 100:
-    # plt.figure(1)
-    # plt.subplot(2,2,1)
-    # # plt.clf()
-    # plt.plot(T,q_opt)
-    # plt.plot(T,qdot_opt)
-    # plt.legend(('q_J00','q_J01','qdot_J00','qdot_J01'))
-    # plt.show(block=False)
-    # # plt.show()
-
-    
-    # # plt.figure(2)
-    # plt.subplot(2,2,2)
-    # # plt.clf()
-    # plt.step(T,np.vstack((DM.nan(1,nj).full(),tau_opt)))
-    # tau_lim = np.matlib.repmat(ubtau,N+1,1)
-    # plt.plot(T,tau_lim)
-    # plt.plot(T,-tau_lim)
-    # plt.legend(('tau_J00','tau_J01'))
-    # plt.show(block=False)    
-    # # plt.show()
-
-    # # plt.figure(3)
-    # plt.subplot(2,2,3)
-    # # plt.clf()
-    # # plt.plot(xyz[:,0],xyz[:,1])
-    # plt.scatter(xyz[:,1],xyz[:,2])
-    # # plt.show()
-    # plt.show(block=False)
-
-    # # plt.figure(4)
-    # plt.subplot(2,2,4)
-    # # plt.clf()
-    # fval = np.zeros([N+1])
-    # for k in range(1,N+1):
-    #     # fval[k] = dot(tau_opt[k-1,:],tau_opt[k-1,:])
-    #     fval[k] = h_opt*mtimes(tau_opt[k-1,:].reshape(1,-1),tau_opt[k-1,:])
-    # plt.plot(T,fval)
-    # plt.legend(('fval'))
-    # plt.show(block=False)
-    pass
 
 #==============================================================================
 #   ANIMATING THE RESULTS WITH RVIZ
 #==============================================================================
 
-if var_ani !=0:
-    nj      = 2
-    j_name  = []
-    for j in range(nj):
-        tmp     = "J%02d" %(j+1)
-        j_name.append(tmp)
-
-    pose = fn.RobotPose(j_name,q_opt,qdot_opt,tau_opt,int(1/h_opt))
-    if var_rec !=0:
-        # os.system("ffmpeg -f x11grab -s 1900x1080 -r 25 -i :0.0 -qscale 5 ~/screenGrab.mpeg")
-        # subprocess.call(['ffmpeg','-f','x11grab','-s','1900x1080','r','25','i',':0.0','-qscale','5','screenGrab.mpeg'])
-        # subprocess.call("ffmpeg -f x11grab -s 1900x1080 -r 25 -i :0.0 -qscale 5 ~/screenGrab.mpeg", shell=True)
-        # subproc = subprocess.Popen("ffmpeg -f x11grab -s 1900x1080 -r 25 -i :0.0 -qscale 5 screenGrab.mpeg", shell=True)
+if var_ani:
+    if var_rec:
         js.posePublisher(pose)
-        # subproc.kill()
-        # os.system("q")
     else:
         js.posePublisher(pose)  
-    
 
+#==============================================================================
+#   PLOTTING THE RESULTS
+#==============================================================================
+
+if var_pl:
+    pose.plot_q(show=True,save=False,title=True,block=False)
+    pose.plot_qdot(show=True,save=False,title=True,block=False)
+    # pose.plot_qddot(show=False,save=False,title=True,block=False)
+    # tau_lim = np.matlib.repmat(ubtau,N+1,1)
+    # pose.plot_tau(show=False,save=False,title=False,block=False,lb=-tau_lim,ub=tau_lim,limits=True)
+    # pose.plot_joint(joint=1,nq=2,show=False,save=False,title=True,block=False)
+    # pose.plot_joint(joint=2,nq=2,show=False,save=False,title=True,block=False)
+    plt.show()
+    
 #==============================================================================
 #   DEBUGGING AREA
 #==============================================================================
@@ -438,5 +384,5 @@ if var_ani !=0:
 #==============================================================================
 #   KEEPING PLOTS OPEN
 #==============================================================================
-if var_pl != 0:
-    plt.show()
+# if var_pl:
+#     plt.show()
