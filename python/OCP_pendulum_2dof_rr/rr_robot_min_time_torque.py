@@ -54,7 +54,7 @@ import tameshiwari.pynocchio_casadi as pyn
 # =============================================================================
 #   INITIALIZATION
 # =============================================================================
-var_pl      = True
+var_pl      = False
 var_ani     = True
 var_rec     = False
 var_inp     = False
@@ -132,12 +132,11 @@ qddot_0 = np.zeros(nj).tolist()
 
 #   TERMINAL CONDITIONS (NUMERICAL)
 offsetX = 0.0800682
-# offsetZ = 1.2
-offsetZ = 0
 offsetY = 0
+offsetZ = 1.2
 desX = 0
 desY = 0
-desZ = 1.92693599
+desZ = 0.797
 EE_pos_N = [desX+offsetX, desY+offsetY, desZ+offsetZ]
 qdot_N = np.zeros(nj).tolist()
 qddot_N = np.zeros(nj).tolist()
@@ -180,6 +179,13 @@ forKin = Function.deserialize(fk_string)
 
 jacEE_string = pyn.generate_jacobian(urdf,'EE')
 jacEE = Function.deserialize(jacEE_string)
+
+# =============================================================================
+#   DEBUG AREA
+# =============================================================================
+
+# print forKin
+# print jacEE
 
 # =============================================================================
 #   NONLINEAR PROGRAM --> FIND A SOLUTION FOR THE OPTIMAL CONTROL INPUT
@@ -280,11 +286,25 @@ J += E
 
 #   TERMINAL CONSTRAINTS:
 #   TERMINAL POSITION CONSTRAINT 
+EE_state = forKin(q=qk)
 EE_pos_k = forKin(q=qk)['ee_pos']
-dist = norm_fro(EE_pos_k - EE_pos_N)
+# dist = norm_2(EE_pos_k[1:2] - EE_pos_N[1:2])
+# dist = norm_fro(EE_pos_k - EE_pos_N)
+
+EE_pos_y = EE_pos_k[1]
+EE_pos_z = EE_pos_k[2]
+y_diff = EE_pos_y - EE_pos_N[1]
+z_diff = EE_pos_z - EE_pos_N[2]
+diff = vertcat(y_diff,z_diff)
+dist = norm_2(diff)
+
+# EE_pos_dif = EE_pos_k - EE_pos_N
+# EE_pos_dif = EE_pos_dif[1:2]
+# print EE_pos_dif
+# dist = norm_2(EE_pos_dif)
 g += [dist]
-lbg += [-inf]
-ubg += [0.01]
+lbg += [0.]
+ubg += [0.00001]
 #   TERMINAL VELOCITY CONSTRAINT
 jacEE_k = jacEE(q=qk)['J']
 EE_vel_k = mtimes(jacEE_k,qdotk)
@@ -364,21 +384,24 @@ if var_ani:
 #   PLOTTING THE RESULTS
 #==============================================================================
 
-if var_pl:
-    pose.plot_q(show=True,save=False,title=True,block=False)
-    pose.plot_qdot(show=True,save=False,title=True,block=False)
+if var_pl or var_save:
+    # pose.plot_q(show=var_pl,save=var_save,title=True,block=False)
+    # pose.plot_qdot(show=True,save=False,title=True,block=False)
     # pose.plot_qddot(show=False,save=False,title=True,block=False)
     # tau_lim = np.matlib.repmat(ubtau,N+1,1)
     # pose.plot_tau(show=False,save=False,title=False,block=False,lb=-tau_lim,ub=tau_lim,limits=True)
     # pose.plot_joint(joint=1,nq=2,show=False,save=False,title=True,block=False)
     # pose.plot_joint(joint=2,nq=2,show=False,save=False,title=True,block=False)
-    plt.show()
+
+    #PLOT THE EE POSITION OF THE SIMULATION AND THE DESIRED POSITION
+
+
+    if var_pl:
+        plt.show()
     
 #==============================================================================
 #   DEBUGGING AREA
 #==============================================================================
-
-
 
 
 #==============================================================================
