@@ -53,8 +53,8 @@ import tameshiwari.pynocchio_casadi as pyn
 #   PARAMETERS
 # =============================================================================
 #   GENERAL PARAMETERS
-var_pl      = 0
-var_ani     = 0
+var_pl      = 1
+var_ani     = 1
 var_rec     = 0
 var_inp     = 0
 var_save    = 0
@@ -84,12 +84,11 @@ qddot_0 = np.zeros(nj).tolist()
 
 #   TERMINAL CONDITIONS (NUMERICAL)
 offsetX = 0.0800682
-# offsetZ = 1.2
-offsetZ = 0
 offsetY = 0
+offsetZ = 1.2
 desX = 0
 desY = 0
-desZ = 1.92693599
+desZ = 0.797
 EE_pos_N = [desX+offsetX, desY+offsetY, desZ+offsetZ]
 qdot_N = np.zeros(nj).tolist()
 qddot_N = np.zeros(nj).tolist()
@@ -247,10 +246,13 @@ J += E
 #   TERMINAL CONSTRAINTS:
 #   TERMINAL POSITION CONSTRAINT 
 EE_pos_k = forKin(q=qk)['ee_pos']
-dist = norm_fro(EE_pos_k - EE_pos_N)
-g += [dist]
-lbg += [-inf]
-ubg += [0.01]
+EE_diff_yk = EE_pos_k[1] - EE_pos_N[1]
+EE_diff_zk = EE_pos_k[2] - EE_pos_N[2]
+EE_diff_k = vertcat(EE_diff_yk,EE_diff_zk)
+EE_dist_k = norm_2(EE_diff_k)
+g += [EE_dist_k]
+lbg += [0.]
+ubg += [0.001]          # 1 millimeter deviation allowed
 #   TERMINAL VELOCITY CONSTRAINT
 jacEE_k = jacEE(q=qk)['J']
 EE_vel_k = mtimes(jacEE_k,qdotk)
@@ -293,6 +295,9 @@ qddot_opt = w_opt[indexer[:,2]].reshape(-1,nj)
 
 g_opt = sol['g'].full()
 tau_opt = g_opt[tau_ind].reshape(-1,nj)
+
+EE_pos = forKin(q=q_opt[-1,:])['ee_pos']
+print EE_pos
 
 #==============================================================================
 #   RETRIEVE CONFIGURATION TRAJECTORY
