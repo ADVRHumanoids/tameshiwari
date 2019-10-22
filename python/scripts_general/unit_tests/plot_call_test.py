@@ -33,15 +33,28 @@ from cycler import cycler
 
 # plt.style.use("ggplot")
 
-prop_cycle = plt.rcParams
-print prop_cycle
-prop_cycle = plt.rcParams['axes.prop_cycle']
-print prop_cycle
-colors = prop_cycle.by_key()['color']
-print colors
-print type(colors)
-colors.extend(colors)
-print colors
-plt.rc('axes',prop_cycle=(cycler(color=colors)))
-prop_cycle = plt.rcParams['axes.prop_cycle']
-print prop_cycle
+# prop_cycle = plt.rcParams
+# print prop_cycle
+# prop_cycle = plt.rcParams['axes.prop_cycle']
+# print prop_cycle
+# colors = prop_cycle.by_key()['color']
+# print colors
+# print type(colors)
+# colors.extend(colors)
+# print colors
+# plt.rc('axes',prop_cycle=(cycler(color=colors)))
+# prop_cycle = plt.rcParams['axes.prop_cycle']
+# print prop_cycle
+
+
+# Time  = np.linspace(0,10,11)
+# print Time
+# print Time[[0,-1]]
+
+vec = []
+g = "g"
+h = "h"
+
+vec += g
+vec += h 
+print vec

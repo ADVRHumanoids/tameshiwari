@@ -54,22 +54,49 @@ import tameshiwari.pynocchio_casadi as pyn
 # =============================================================================
 #   INITIALIZATION
 # =============================================================================
-var_pl      = False
-var_ani     = True
+var_pl      = True
+var_ani     = False
 var_rec     = False
 var_inp     = False
 var_save    = False
+var_h_opt   = True
 
 # =============================================================================
-#   WEIGHTENING
+#   WEIGHTENING 
 # =============================================================================
 #   DEFAULT VALUES
-W = 0.5
+W = 1.0
 W_h = 1.0
-W_tau = 1.0
 
+# TODO: Change the weighenings to have effect on the proper values
 #   USER INPUTS
 if var_inp:
+    print "================ USER INPUT ================"
+    usr_h_opt = raw_input("Do you want to optimze for Time? (y/N): ")
+    if usr_h_opt != "":
+        try:
+            if usr_h_opt.lower() == 'y':
+                var_h_opt = True
+            elif usr_h_opt.lower() == 'n':
+                var_h_opt = False
+            print "The following value was entered: %s" %var_h_opt
+        except ValueError:
+            var_h_opt = False
+            print "Automatic response, default value: %s" %var_h_opt
+    else:
+        var_h_opt = False
+        print "Automatic response, default value: %s" %var_h_opt
+
+    if var_h_opt:
+        print "================ USER INPUT ================"
+        usr_W_time = raw_input("Enter a weighting for minimizing T (0,1.0): ")
+        if usr_W_time != "":
+            try:
+                W_h = float(usr_W_time)
+                print "The following value was entered: %s" %W_h
+            except ValueError:
+                print "Nothing was entered, default value: %s" %W_h
+
     print "================ USER INPUT ================"
     usr_W = raw_input("Enter the torque reduction factor W between (0.1,1.0): ")
     if usr_W != "":
@@ -78,22 +105,6 @@ if var_inp:
             print "The following value was entered: %s" %W
         except ValueError:
             print "Nothing was entered, default value: %s" %W
-    print "================ USER INPUT ================"
-    usr_W_time = raw_input("Enter a weighting for minimizing T (0,1.0): ")
-    if usr_W != "":
-        try:
-            W_h = float(usr_W_time)
-            print "The following value was entered: %s" %W_h
-        except ValueError:
-            print "Nothing was entered, default value: %s" %W_h
-    print "================ USER INPUT ================"
-    usr_W_tau = raw_input("Enter a weighting for minimizing Torque (0,1.0): ")
-    if usr_W != "":
-        try:
-            W_tau = float(usr_W_tau)
-            print "The following value was entered: %s" %W_tau
-        except ValueError:
-            print "Nothing was entered, default value: %s" %W_tau
 
     if W <= 0.1:
         W = 0.1
@@ -131,12 +142,14 @@ qddot_0 = np.zeros(nj).tolist()
 # qddot_0 = qddot_0.tolist()
 
 #   TERMINAL CONDITIONS (NUMERICAL)
+J01_pos = [0.0, 0.0, 1.2]
 offsetX = 0.0800682
 offsetY = 0
 offsetZ = 1.2
 desX = 0
-desY = 0
-desZ = 0.797
+desY = 0.797
+# desY = 0.65
+desZ = 0
 EE_pos_N = [desX+offsetX, desY+offsetY, desZ+offsetZ]
 qdot_N = np.zeros(nj).tolist()
 qddot_N = np.zeros(nj).tolist()
@@ -195,11 +208,6 @@ w = []
 w0 = []
 lbw = []
 ubw = []
-h = MX.sym('h')
-w += [h]
-w0 += [h_0]
-lbw = [0.001]
-ubw = [0.5]
 #   COST FUNCTION INITIALIZATION
 J = 0
 #   INEQUALITY CONSTRAINT
@@ -227,14 +235,26 @@ cnt = 0
 #   change during the iterations, they are not to be used as free variables,
 #   but rather as parameter variables.
 
+#   SECTION FOR IF TIME HAS TO BE OPTIMIZED
+if var_h_opt:
+    h = MX.sym('h')
+    w += [h]
+    w0 += [h_0]
+    lbw = [0.001]
+    ubw = [h_max]
+else:
+    h = h_0
+
 qk = MX.sym('q_0',nj)
 qdotk = MX.sym('qdot_0',nj)
 qddotk = MX.sym('qddot_0',nj)
 w += [qk,qdotk,qddotk]
 lbw += lbq + lbqdot + lbqddot
 ubw += ubq + ubqdot + ubqddot
-# w0 += q_0 + qdot_0 + qddot_0
 w0 += q_0_vec[0,:].tolist() + qdot_0 + qddot_0
+
+#   INITIAL CONDITIONS STATE VECTOR (POSITION, VELOCITY & ACCELERATION)
+#   --> IN GENERAL ONLY INIITAL POSITION CAN DEVIATE FROM THE ZERO VECTOR
 g += [qk,qdotk,qddotk]
 lbg += np.zeros(nj*nq).tolist()
 ubg += np.zeros(nj*nq).tolist()
@@ -252,12 +272,10 @@ for k in range(N):
     tau_k_norm = 1/np.array(ubtau) * tauk
 
     #   INTEGRAL COST CONTRIBUTION
-    # L = dot(tauk,tauk) + dot(qk,qk)
-    # L = dot(tauk,tauk)
-    L = W_h * h_norm + W_tau * dot(tau_k_norm,tau_k_norm)
-    # L = norm_2(tauk)
-    # L = h*sqrt(dot(tauk,tauk))
-    # L = dot(qk,qk)
+    if var_h_opt:
+        L = W_h * h_norm
+    else:
+        L = 0
     J += L
 
     #   INTEGRATE EULER METHOD
@@ -279,27 +297,31 @@ for k in range(N):
     lbg += np.zeros(nj*2).tolist()
     ubg += np.zeros(nj*2).tolist()
 
-#   TERMINAL COST 
-# E = dot(qk,qk)
-E = 0
-J += E
-
 #   TERMINAL CONSTRAINTS:
-#   TERMINAL POSITION CONSTRAINT 
-EE_pos_k = forKin(q=qk)['ee_pos']
-EE_diff_yk = EE_pos_k[1] - EE_pos_N[1]
-EE_diff_zk = EE_pos_k[2] - EE_pos_N[2]
-EE_diff_k = vertcat(EE_diff_yk,EE_diff_zk)
-EE_dist_k = norm_2(EE_diff_k)
-g += [EE_dist_k]
-lbg += [0.]
-ubg += [0.001]          # 1 millimeter deviation allowed
+#   TERMINAL POSITION CONSTRAINT
+EE_pos_constr = False
+if EE_pos_constr:
+    EE_pos_k = forKin(q=qk)['ee_pos']
+    EE_diff_yk = EE_pos_k[1] - EE_pos_N[1]
+    EE_diff_zk = EE_pos_k[2] - EE_pos_N[2]
+    EE_diff_k = vertcat(EE_diff_yk,EE_diff_zk)
+    EE_dist_k = norm_2(EE_diff_k)
+    g += [EE_dist_k]
+    lbg += [0.]
+    ubg += [0.001]          # 1 millimeter deviation allowed
 #   TERMINAL VELOCITY CONSTRAINT
-jacEE_k = jacEE(q=qk)['J']
-EE_vel_k = mtimes(jacEE_k,qdotk)
-g += [EE_vel_k]
-lbg += np.zeros(6).tolist()
-ubg += np.zeros(6).tolist()
+#   CONSTRAIN THE Z VELOCITY SUCH THAT THE EE IS GOING TO ARRIVE FROM THE TOP
+jacEE_N = jacEE(q=qk)['J']
+EE_vel_N = mtimes(jacEE_N,qdotk)
+EE_vel_zN = EE_vel_N[2]
+g += [EE_vel_zN]
+lbg += [-inf]
+ubg += [0]
+
+#   TERMINAL COST 
+#   IS GOING TO BE -1*EE_VEL_K
+E = -1*dot(EE_vel_zN,EE_vel_zN)
+J += E
 
 # =============================================================================
 #   SOLVER CREATOR AND SOLUTION
@@ -327,8 +349,13 @@ for i in range(nq):
         indexer = np.concatenate((indexer,tmp),axis=1)
 
 w_opt = sol['x'].full()
-h_opt = w_opt[0]
-w_opt = w_opt[1:]
+if var_h_opt:
+    h_opt = w_opt[0]
+    w_opt = w_opt[1:]
+else:
+    h_opt = h
+Tf_opt = h_opt*N
+rate_opt = int(1/h_opt)
 q_opt = w_opt[indexer[:,0]].reshape(-1,nj)
 qdot_opt = w_opt[indexer[:,1]].reshape(-1,nj)
 qddot_opt = w_opt[indexer[:,2]].reshape(-1,nj)
@@ -338,9 +365,6 @@ g_opt = sol['g'].full()
 tau_opt = g_opt[tau_ind].reshape(-1,nj)
 tau_opt = np.vstack((tau_opt,tau_opt[-1,:]))
 tau_opt[0,:] = DM.nan(1,nj).full()
-
-EE_pos = forKin(q=q_opt[-1,:])['ee_pos']
-print EE_pos
 
 #==============================================================================
 #   RETRIEVE CONFIGURATION TRAJECTORY
@@ -363,25 +387,36 @@ if var_save:
     pose.saveMat()
 
 #==============================================================================
-#   ANIMATING THE RESULTS WITH RVIZ
+#   PRINT STATEMENTS
 #==============================================================================
+print "The initial time step size: h_0 = %s" %h_0
+print "The initial final time: Tf_0 = %s" %Tf
+print "The optimized time step size: h_opt = %s" %h_opt
+print "The optimized final time: Tf_opt = %s" %Tf_opt
 
-if var_ani:
-    if var_rec:
-        js.posePublisher(pose)
-    else:
-        js.posePublisher(pose)  
+
+jacEE_opt = jacEE(q=q_opt[-1,:])['J']
+# print jacEE_opt
+EE_vel_opt = mtimes(jacEE_opt,qdot_opt[-1,:])
+# EE_vel_opt = np.matmul(jacEE_opt,np.transpose(qdot_opt[-1,:]))
+print "The optimized final EE linear velocity: %s [m/s]" %EE_vel_opt[0:3]
+print "The optimized final EE rotational velocity: %s [rad/s]" %EE_vel_opt[3:]
+EE_vel_zopt = EE_vel_opt[2]
+print "The optimized final EE velocity along the z-axis: %s [m/s]" %EE_vel_zopt
+EE_pos = forKin(q=q_opt[-1,:])['ee_pos']
+print "The optimized final EE cartesian position: %s [m]" %(EE_pos - J01_pos)
+print "This position is w.r.t. origin of joint 1"
 
 #==============================================================================
 #   PLOTTING THE RESULTS
 #==============================================================================
 
 if var_pl or var_save:
-    # pose.plot_q(show=var_pl,save=var_save,title=True,block=False)
-    # pose.plot_qdot(show=True,save=False,title=True,block=False)
-    # pose.plot_qddot(show=False,save=False,title=True,block=False)
-    # tau_lim = np.matlib.repmat(ubtau,N+1,1)
-    # pose.plot_tau(show=False,save=False,title=False,block=False,lb=-tau_lim,ub=tau_lim,limits=True)
+    pose.plot_q(show=var_pl,save=var_save,title=True,block=False,lb=lbq,ub=ubq,limits=True)
+    pose.plot_qdot(show=var_pl,save=var_save,title=True,block=False,lb=lbqdot,ub=ubqdot,limits=True)
+    pose.plot_qddot(show=var_pl,save=var_save,title=True,block=False)
+    tau_lim = np.matlib.repmat(ubtau,pose.N,1)
+    pose.plot_tau(show=var_pl,save=var_save,title=True,block=False,lb=-tau_lim,ub=tau_lim,limits=False)
     # pose.plot_joint(joint=1,nq=2,show=False,save=False,title=True,block=False)
     # pose.plot_joint(joint=2,nq=2,show=False,save=False,title=True,block=False)
 
@@ -392,8 +427,21 @@ if var_pl or var_save:
         plt.show()
     
 #==============================================================================
+#   ANIMATING THE RESULTS WITH RVIZ
+#   HAS TO HAPPEN AFTER PLOTTING AND SAVING BECAUSE IT OVERWRITES THE REAL POSE
+#==============================================================================
+
+if var_ani:
+    pose.interpolate(rviz_rate)
+    if var_rec:
+        js.posePublisher(pose)
+    else:
+        js.posePublisher(pose)
+
+#==============================================================================
 #   DEBUGGING AREA
 #==============================================================================
+
 
 
 #==============================================================================

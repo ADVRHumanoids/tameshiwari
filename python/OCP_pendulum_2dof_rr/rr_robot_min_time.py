@@ -198,9 +198,13 @@ lbw += lbq + lbqdot + lbqddot
 ubw += ubq + ubqdot + ubqddot
 # w0 += q_0 + qdot_0 + qddot_0
 w0 += q_0_vec[0,:].tolist() + qdot_0 + qddot_0
+#   INITIAL JOINT STATES
 g += [qk,qdotk,qddotk]
 lbg += np.zeros(nj*nq).tolist()
+# lbg[1] = ubq[1]
 ubg += np.zeros(nj*nq).tolist()
+# ubg[1] = ubq[1]
+
 
 for k in range(N):
     #   NEW NLP VARIABLE FOR THE CONTROL

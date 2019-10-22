@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 import matplotlib2tikz
 import scipy.io as sio
 from datetime import datetime
-import os
+import os, sys
 import __main__ as main
 from cycler import cycler
 
@@ -79,7 +79,7 @@ class SolverParam:
         sio.savemat(fileName,self.dict)
 
 class RobotPose:
-    def __init__(self,name='',q=np.array([]),qdot=np.array([]),tau=np.array([]),rate=10.,qddot=np.array([])):
+    def __init__(self,name='',q=np.array([]),qdot=np.array([]),tau=np.array([]),rate=10,qddot=np.array([])):
         # Make sure q, qdot, tau are matrices of N x nj
         # N is number of samples and nj is number of joints
         # self has: name, q, qdot, qddot, tau, rate, nj,
@@ -95,7 +95,7 @@ class RobotPose:
         # Determine the amount of time samples and final time
         if np.shape(self.q)[0] > 1:
             self.N = np.shape(self.q)[0]
-            self.Tf = (self.N-1)/rate
+            self.Tf = (float(self.N-1))/rate
             self.T = np.matlib.linspace(0,self.Tf,self.N)
 
         # Determine the number of joints dependent on q
@@ -112,13 +112,12 @@ class RobotPose:
         # points to it to have smooth motion in rviz
         # Techniques used are from Siciliano book chapter 4 Trajectory Planning
 
-        # FIrst we compare the rate of the instance with the desired rate.
+        # First we compare the rate of the instance with the desired rate.
         # If the desired rate is smaller or equal than self.rate then nothing will be processed
-        if self.rate <= drate and np.shape(self.qdot)[0] == np.shape(self.q)[0]:
-            
+        if self.rate < drate and np.shape(self.qdot)[0] == np.shape(self.q)[0]:
             # The size of q, qdot and tau will be greater than before.
             # tau will be interpolated using zero order-hold technique
-            N_new = self.Tf*drate + 1
+            N_new = int(self.Tf*drate + 1)
             T_new = np.matlib.linspace(0,self.Tf,N_new)
             # print "T vector of original: %s" %self.T
             # print "T vector of new: %s" %T_new
@@ -148,6 +147,7 @@ class RobotPose:
                     
                     ind = np.nonzero((T_new >= self.T[k]) & (T_new < self.T[k+1]))[0]
                     sz = np.size(ind)
+                    # TODO: add qddot & tau as well
                     for i in range(sz):
                         q_new[ind[i],j] = np.polyval(x,T_new[ind[i]])
                         qdot_new[ind[i],j] = np.polyval(xdot,T_new[ind[i]])
@@ -159,6 +159,34 @@ class RobotPose:
             self.T = T_new
             self.rate = drate
             self.N = N_new
+            print "The frame rate has been increased."
+        elif self.rate > drate:
+            # This function doesn't require qdot, so no condition is set on this
+            
+            # print "number of frames by RobotPose: %s" % self.N
+            # print "Final time by RobotPose: %s" %self.Tf
+            N_new = int(self.Tf*drate + 1)
+            T_new = np.matlib.linspace(0,self.Tf,N_new)
+            q_new = np.zeros([N_new,self.nj])
+            qdot_new = np.zeros([N_new,self.nj])
+            for j in range(self.nj):
+                for k in range(self.N-1):
+                    ind = np.nonzero((T_new >= self.T[k]) & (T_new < self.T[k+1]))[0]
+                    if len(ind) > 0:
+                        q_new[ind,j] = self.q[k,j]
+                        qdot_new[ind,j] = self.qdot[k,j]
+                    if k == self.N-2:
+                        q_new[-1,j] = self.q[-1,j]
+                        qdot_new[-1,j] = self.qdot[-1,j]
+            self.q = q_new
+            # print len(self.q)
+            self.qdot = qdot_new
+            self.T = T_new
+            self.rate = drate
+            self.N = N_new
+            print "The frame rate has been decreased."
+        else:
+            print "The frame rate is already the same as rviz"
 
     def saveMat(self,dirName='',fileName='',suffix='RobotPose_'):
         if not dirName:
@@ -182,7 +210,7 @@ class RobotPose:
     
     def savePlot(self,dirName='',fileName='',suffix='Plot_',ext='.tex'):
         if not dirName:
-            dirName = os.getcwd() + '/plots'
+            dirName = os.path.split(os.path.abspath(os.path.realpath(sys.argv[0])))[0] + '/plots'
         if not os.path.isdir(dirName):
             os.mkdir(dirName)
         if not fileName:
@@ -196,6 +224,12 @@ class RobotPose:
     def plot_q(self,show=True,save=False,title=True,grid=True,legend_str='',block=True,lb=[],ub=[],limits=False):
         fig, ax = plt.subplots()
         ax.plot(self.T,self.q)
+
+        if limits:
+            if len(lb)==self.nj:
+                for i in range(self.nj):
+                    ax.plot(self.T[[0,-1]],[ub[i],ub[i]], color=colors[i], linestyle='dashed')
+                    ax.plot(self.T[[0,-1]],[lb[i],lb[i]], color=colors[i], linestyle='dashed')
 
         ax.set_xlabel("time [s]")
         ax.set_ylabel("$\\theta$ [rad]")
@@ -215,6 +249,12 @@ class RobotPose:
     def plot_qdot(self,show=True,save=False,title=True,grid=True,legend_str='',block=True,lb=[],ub=[],limits=False):
         fig, ax = plt.subplots()
         ax.plot(self.T,self.qdot)
+
+        if limits:
+            if len(lb)==self.nj:
+                for i in range(self.nj):
+                    ax.plot(self.T[[0,-1]],[ub[i],ub[i]], color=colors[i], linestyle='dashed')
+                    ax.plot(self.T[[0,-1]],[lb[i],lb[i]], color=colors[i], linestyle='dashed')
 
         ax.set_xlabel("time [s]")
         ax.set_ylabel("$\\dot{\\theta}$ [rad/s]")
@@ -256,11 +296,10 @@ class RobotPose:
         tau_plot[0,:] = DM.nan(1,self.nj).full()
         # ax.step(self.T,tau_plot)
         ax.step(self.T,self.tau)
-        for i in range(self.nj):
-            # ax.plot(T,)
-            ax.step(self.T,ub[:,i], where='post', color=colors[i], linestyle='dashed')
-            ax.step(self.T,lb[:,i], where='post', color=colors[i], linestyle='dashed')
-            # pass
+        if limits:
+            for i in range(self.nj):
+                ax.step(self.T,ub[:,i], where='post', color=colors[i], linestyle='dashed')
+                ax.step(self.T,lb[:,i], where='post', color=colors[i], linestyle='dashed')
 
         ax.set_xlabel("time [s]")
         ax.set_ylabel("$\\tau$ [Nm]")
