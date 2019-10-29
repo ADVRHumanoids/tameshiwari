@@ -7,16 +7,17 @@
 
 #==============================================================================
 #   SUMMARY:
-#   This script is an extension of the rr_robot_min_torque.py where the
-#   objective is to minimize over time as well. That means the time-step
-#   of the solver is an optimization variable. Just a single extra variable
-#   meaning that it optimizes the duration of a single interval which duration
-#   is constant over all N-intervals.
+#   This script is the first implementation of trying to maximize momentum at
+#   the end-effector in cartesian space. The possibility is to choose a direction
+#   in which the momentum/velocity has to be maximized. This script only takes
+#   into account the first stage of the problem which is to accelerate the EE.
 # 
 #   OBJECTIVE:
-#   The objective is to move the pendulum from the rest (hanging) position
-#   to the upward position with the least amount of torque used.
-#   The optimization objective is then minimize sum(h*sqrt(dot(tau_k^T,tau_k))).
+#   The objective is to move the pendulum from a rest position to a desired
+#   final position with an as large as possible EE velocity within the 
+#   joint velocity limits. The input of a final EE cartesian position is not
+#   mandatory, the final pose will then depend on the which local minima it
+#   finds first.
 # 
 #   MODEL:
 #   The model is an 2 DoF double pendulum, similar to the CENTAURO arm
@@ -54,12 +55,12 @@ import tameshiwari.pynocchio_casadi as pyn
 # =============================================================================
 #   INITIALIZATION
 # =============================================================================
-var_pl      = True
-var_ani     = False
+var_pl      = False
+var_ani     = True
 var_rec     = False
 var_inp     = False
 var_save    = False
-var_h_opt   = True
+var_h_opt   = False
 
 # =============================================================================
 #   WEIGHTENING 
@@ -132,10 +133,12 @@ rviz_rate = 30
 #   INITIAL CONDITIONS (NUMERICAL)
 nj = 2
 nq = 3 # number of different q's --> q(t), qdot(t), qddot(t)
-q_0 = np.zeros(nj).tolist()
+# q_0 = np.zeros(nj).tolist()
+q_0 = np.array([np.pi*3/4,np.pi/2]).reshape(-1,2)
 # q_0_vec = np.matlib.linspace(0,np.pi,N+1).reshape(-1,1)
 # q_0_vec = np.hstack((q_0_vec,np.zeros([N+1,1]))) #.reshape(-1,1).flatten().tolist()
 q_0_vec = np.zeros([N+1,nj])
+# q_0_vec = np.ones([N+1,nj]) * q_0
 qdot_0 = np.zeros(nj).tolist()
 qddot_0 = np.zeros(nj).tolist()
 # qddot_0 = np.ones(nj,dtype=float)* 0.5
@@ -256,6 +259,8 @@ w0 += q_0_vec[0,:].tolist() + qdot_0 + qddot_0
 #   INITIAL CONDITIONS STATE VECTOR (POSITION, VELOCITY & ACCELERATION)
 #   --> IN GENERAL ONLY INIITAL POSITION CAN DEVIATE FROM THE ZERO VECTOR
 g += [qk,qdotk,qddotk]
+# lbg += q_0_vec[0,:].tolist() + qdot_0 + qddot_0
+# ubg += q_0_vec[0,:].tolist() + qdot_0 + qddot_0
 lbg += np.zeros(nj*nq).tolist()
 ubg += np.zeros(nj*nq).tolist()
 
@@ -416,7 +421,7 @@ if var_pl or var_save:
     pose.plot_qdot(show=var_pl,save=var_save,title=True,block=False,lb=lbqdot,ub=ubqdot,limits=True)
     pose.plot_qddot(show=var_pl,save=var_save,title=True,block=False)
     tau_lim = np.matlib.repmat(ubtau,pose.N,1)
-    pose.plot_tau(show=var_pl,save=var_save,title=True,block=False,lb=-tau_lim,ub=tau_lim,limits=False)
+    pose.plot_tau(show=var_pl,save=var_save,title=True,block=False,lb=-tau_lim,ub=tau_lim,limits=True)
     # pose.plot_joint(joint=1,nq=2,show=False,save=False,title=True,block=False)
     # pose.plot_joint(joint=2,nq=2,show=False,save=False,title=True,block=False)
 
