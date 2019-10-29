@@ -1,13 +1,28 @@
 <launch>
     <param name="robot_description" textfile="$(find tameshiwari)/rr_robot_description/urdf/rr_robot.urdf" />
 
-    <!-- <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher">
-        <param name="use_gui" value="TRUE" />
-    </node> -->
-
     <node name="robot_state_publisher" pkg="robot_state_publisher" type="state_publisher" >
         <remap from="joint_states" to="pose_state" />
     </node>
 
     <node name="rviz" pkg="rviz" type="rviz" args=" -d $(find tameshiwari)/rr_robot_description/launch/config.rviz" />
+
+    <!-- Launch the start up python script so it goes to initial position -->
+    <node pkg="tameshiwari" type="init_state.py" name="init_state" />
+
+    <group ns="camera1">
+    <node pkg="tf" type="static_transform_publisher" name="camera_broadcaster"
+        args="2.5 0.0 1.2 1.57079 0 -1.57079 L00 camera1 10" />
+    <node name="camera_info" pkg="rostopic" type="rostopic"
+        args="pub camera_info sensor_msgs/CameraInfo
+        '{header: {seq: 0, stamp: {secs: 0, nsecs: 0}, frame_id: 'camera1'},
+        height: 530, width: 640, distortion_model: 'plumb_bob',
+        D: [0],
+        K: [500.0, 0.0, 265, 0.0, 500.0, 320.0, 0.0, 0.0, 1.0],
+        R: [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+        P: [500.0, 0.0, 265, 0.0, 0.0, 500, 320, 0.0, 0.0, 0.0, 1.0, 0.0],
+        binning_x: 0, binning_y: 0,
+        roi: {x_offset: 0, y_offset: 0, height: 530, width: 640, do_rectify: false}}' -r 2"
+        output="screen"/>
+    </group>
 </launch>
