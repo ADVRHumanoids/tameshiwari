@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python2
 # -*- coding: utf-8 -*-
 
 #   This script is part of Tameshiwari Repository
@@ -57,7 +57,7 @@ import rospy
 #==============================================================================
 
 import functions as fn
-import joint_state as js
+import rec_joint_state as js
 import tameshiwari.pynocchio_casadi as pyn
 
 # =============================================================================
@@ -74,7 +74,7 @@ filename = "%s/%s.mat" % (os.getcwd(),name)
 
 #   SIMULATION PARAMETERS
 N = 120
-h = 0.05
+h = 0.02
 Tf = N*h
 T = np.arange(0,Tf+h,h)
 T =  T.reshape(-1,1)
@@ -369,7 +369,7 @@ if var_ani !=0:
         # subproc.kill()
         # os.system("q")
     else:
-        js.posePublisher(pose)  
+        js.posePublisher(pose,record=True)  
     
 
 #==============================================================================

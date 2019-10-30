@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python2
 # -*- coding: utf-8 -*-
 
 #   This script is part of Tameshiwari Repository
@@ -64,7 +64,7 @@ var_save    = False
 #   WEIGHTENING
 # =============================================================================
 #   DEFAULT VALUES
-W = 0.5
+W = 1.0
 W_h = 1.0
 W_tau = 1.0
 
@@ -297,9 +297,15 @@ ubg += [0.001]          # 1 millimeter deviation allowed
 #   TERMINAL VELOCITY CONSTRAINT
 jacEE_k = jacEE(q=qk)['J']
 EE_vel_k = mtimes(jacEE_k,qdotk)
-g += [EE_vel_k]
-lbg += np.zeros(6).tolist()
-ubg += np.zeros(6).tolist()
+EE_vel_yk = EE_vel_k[1]
+EE_vel_zk = EE_vel_k[2]
+# g += [EE_vel_k]
+# lbg += np.zeros(6).tolist()
+# ubg += np.zeros(6).tolist()
+#   Resolved overconstraint on velocity
+g += [EE_vel_yk, EE_vel_zk]
+lbg += np.zeros(2).tolist()
+ubg += np.zeros(2).tolist()
 
 # =============================================================================
 #   SOLVER CREATOR AND SOLUTION
@@ -341,6 +347,11 @@ tau_opt[0,:] = DM.nan(1,nj).full()
 
 EE_pos = forKin(q=q_opt[-1,:])['ee_pos']
 print EE_pos
+# print g_opt
+jacEE_N = jacEE(q=q_opt[-1,:])['J']
+EE_vel_N = mtimes(jacEE_N,qdot_opt[-1,:])
+print EE_vel_N
+
 
 #==============================================================================
 #   RETRIEVE CONFIGURATION TRAJECTORY

@@ -8,14 +8,12 @@
 #   SUMMARY:
 #   This script is an replacement of the rr_robot_min_torque.py where the
 #   objective is to minimize over time. That means the time-step
-#   of the solver is an optimization variable. Just a single extra variable
-#   meaning that it optimizes the duration of a single interval which duration
-#   is constant over all N-intervals.
+#   of the solver is an optimization variable. For every interval a
+#   separate optimization variable h_k is created.
 # 
 #   OBJECTIVE:
 #   The objective is to move the pendulum from the rest (hanging) position
-#   to the upward position with the least amount of torque used.
-#   The optimization objective is then minimize sum(h*sqrt(dot(tau_k^T,tau_k))).
+#   to the upward position as fast as possible within the torque bounds.
 # 
 #   MODEL:
 #   The model is an 2 DoF double pendulum, similar to the CENTAURO arm
@@ -58,12 +56,15 @@ var_ani     = 1
 var_rec     = 0
 var_inp     = 0
 var_save    = 0
+var_h_interval = 1
 name = 'Res_DMS_minimize_torque'
 filename = "%s/%s.mat" % (os.getcwd(),name)
 
 #   SIMULATION PARAMETERS
 N = 120
 h_0 = 0.02
+lbh = 0
+ubh = 0.08
 Tf = N*h_0
 T = np.arange(0,Tf+h_0,h_0)
 T =  T.reshape(-1,1)
@@ -158,11 +159,6 @@ w = []
 w0 = []
 lbw = []
 ubw = []
-h = MX.sym('h')
-w += [h]
-w0 += [h_0]
-lbw = [0.001]
-ubw = [0.5]
 #   COST FUNCTION INITIALIZATION
 J = 0
 #   INEQUALITY CONSTRAINT
@@ -172,23 +168,6 @@ ubg = []
 #   TORQUE INDEX VECTOR
 tau_ind = []
 cnt = 0
-
-#   Formulate the NLP
-#   minimize(tau)     sum_(k=0)^(N-1) dot(tau,tau)
-#   subject to        qdot_k+1 - qdot_k - h*qddot_k = 0
-#                     for k = [0,1,....,N-1]
-#                     \bar(x_0) - x_0  = 0, for some initial condition
-#                     \bar(x_N) - x_N  = 0, for some terminal condition
-#                     lbq    <= q_k    <= ubq
-#                     lbqdot <= qdot_k <= ubqdot
-#                     lbtau  <= tau_k  <= ubtau 
-#   Decision variable vector q has the following structure:
-#   q = [x_0_0 x_1_0 u_0 x_0_1 x_1_1 u_1 ..... u_N-1 x_0_N x_1_N]
-#  
-#   For the single shooting method only the control input is a free variable
-#   for the optimization problem. The others are variable parameters that
-#   change during the iterations, they are not to be used as free variables,
-#   but rather as parameter variables.
 
 qk = MX.sym('q_0',nj)
 qdotk = MX.sym('qdot_0',nj)
@@ -204,9 +183,20 @@ lbg += np.zeros(nj*nq).tolist()
 # lbg[1] = ubq[1]
 ubg += np.zeros(nj*nq).tolist()
 # ubg[1] = ubq[1]
+# hk = MX.sym('h_0')
+# w += [hk]
+# w0 += [h_0]
+# lbw = [lbh]
+# ubw = [ubh]
 
 
 for k in range(N):
+    hk = MX.sym('h_' + str(k))
+    w += [hk]
+    w0 += [h_0]
+    lbw += [lbh]
+    ubw += [ubh]
+
     #   NEW NLP VARIABLE FOR THE CONTROL
     tauk = invDyn(q=qk,qdot=qdotk,qddot=qddotk)['tau']
     tau_ind += [np.shape(g)[0]*2,np.shape(g)[0]*2+1]
@@ -217,15 +207,15 @@ for k in range(N):
     #   INTEGRAL COST CONTRIBUTION
     # L = dot(tauk,tauk) + dot(qk,qk)
     # L = dot(tauk,tauk)
-    L = h
+    L = hk
     # L = norm_2(tauk)
     # L = h*sqrt(dot(tauk,tauk))
     # L = dot(qk,qk)
     J += L
 
     #   INTEGRATE EULER METHOD
-    qdotk_next = qdotk + h*qddotk
-    qk_next = qk + h*qdotk
+    qdotk_next = qdotk + hk*qddotk
+    qk_next = qk + hk*qdotk
 
     #   NEW NLP VARIABLE FOR THE CONTROL
     qk = MX.sym('q_' + str(k+1),nj)
@@ -278,24 +268,29 @@ sol = solver(x0=w0, lbx=lbw, ubx=ubw, lbg=lbg, ubg=ubg)
 # =============================================================================
 #   RETRIEVE THE OPTIMAL SOLUTIONS
 # =============================================================================
-ind = np.eye(nq)
-for i in range(nq):
+ind = np.eye(nq+1)
+for i in range(nq+1):
     indnq = list(np.ones(nj)*ind[0,i])
     indnqdot = list(np.ones(nj)*ind[1,i])
     indnqddot = list(np.ones(nj)*ind[2,i])
-    tmp = np.matlib.repmat([indnq,indnqdot,indnqddot],N+1,1).reshape((N+1)*nq*nj,1) > 0
+    indh = list(np.ones(1)*ind[3,i])
+    indnstate = list(np.array([indnq,indnqdot,indnqddot]).reshape(-1,1).flatten())
+    tmp = np.matlib.repmat(indnstate + indh,1,N).flatten()
+    tmp = np.concatenate((tmp,np.asarray(indnstate))).reshape(-1,1) > 0
     if i == 0:
         indexer = tmp
     else:
         indexer = np.concatenate((indexer,tmp),axis=1)
 
 w_opt = sol['x'].full()
-h_opt = w_opt[0]
-w_opt = w_opt[1:]
 q_opt = w_opt[indexer[:,0]].reshape(-1,nj)
 qdot_opt = w_opt[indexer[:,1]].reshape(-1,nj)
 qddot_opt = w_opt[indexer[:,2]].reshape(-1,nj)
+h_opt = w_opt[indexer[:,3]]
 # h_opt = h_0
+# print q_opt
+# print type(h_opt)
+print h_opt.max()
 
 g_opt = sol['g'].full()
 tau_opt = g_opt[tau_ind].reshape(-1,nj)
@@ -324,46 +319,46 @@ for j in range(N+1):
 #   Plot 3 shows the trajectory in the yz-plane
 #==============================================================================
 
-if var_pl != 0:
-    plt.figure(1)
-    plt.subplot(2,2,1)
-    # plt.clf()
-    plt.plot(T,q_opt)
-    plt.plot(T,qdot_opt)
-    plt.legend(('q_J00','q_J01','qdot_J00','qdot_J01'))
-    plt.show(block=False)
-    # plt.show()
+# if var_pl != 0:
+#     plt.figure(1)
+#     plt.subplot(2,2,1)
+#     # plt.clf()
+#     plt.plot(T,q_opt)
+#     plt.plot(T,qdot_opt)
+#     plt.legend(('q_J00','q_J01','qdot_J00','qdot_J01'))
+#     plt.show(block=False)
+#     # plt.show()
 
     
-    # plt.figure(2)
-    plt.subplot(2,2,2)
-    # plt.clf()
-    plt.step(T,np.vstack((DM.nan(1,nj).full(),tau_opt)))
-    tau_lim = np.matlib.repmat(ubtau,N+1,1)
-    plt.plot(T,tau_lim)
-    plt.plot(T,-tau_lim)
-    plt.legend(('tau_J00','tau_J01'))
-    plt.show(block=False)    
-    # plt.show()
+#     # plt.figure(2)
+#     plt.subplot(2,2,2)
+#     # plt.clf()
+#     plt.step(T,np.vstack((DM.nan(1,nj).full(),tau_opt)))
+#     tau_lim = np.matlib.repmat(ubtau,N+1,1)
+#     plt.plot(T,tau_lim)
+#     plt.plot(T,-tau_lim)
+#     plt.legend(('tau_J00','tau_J01'))
+#     plt.show(block=False)    
+#     # plt.show()
 
-    # plt.figure(3)
-    plt.subplot(2,2,3)
-    # plt.clf()
-    # plt.plot(xyz[:,0],xyz[:,1])
-    plt.scatter(xyz[:,1],xyz[:,2])
-    # plt.show()
-    plt.show(block=False)
+#     # plt.figure(3)
+#     plt.subplot(2,2,3)
+#     # plt.clf()
+#     # plt.plot(xyz[:,0],xyz[:,1])
+#     plt.scatter(xyz[:,1],xyz[:,2])
+#     # plt.show()
+#     plt.show(block=False)
 
-    # plt.figure(4)
-    plt.subplot(2,2,4)
-    # plt.clf()
-    fval = np.zeros([N+1])
-    for k in range(1,N+1):
-        # fval[k] = dot(tau_opt[k-1,:],tau_opt[k-1,:])
-        fval[k] = h_opt*mtimes(tau_opt[k-1,:].reshape(1,-1),tau_opt[k-1,:])
-    plt.plot(T,fval)
-    plt.legend(('fval'))
-    plt.show(block=False)
+#     # plt.figure(4)
+#     plt.subplot(2,2,4)
+#     # plt.clf()
+#     fval = np.zeros([N+1])
+#     for k in range(1,N+1):
+#         # fval[k] = dot(tau_opt[k-1,:],tau_opt[k-1,:])
+#         fval[k] = h_opt*mtimes(tau_opt[k-1,:].reshape(1,-1),tau_opt[k-1,:])
+#     plt.plot(T,fval)
+#     plt.legend(('fval'))
+#     plt.show(block=False)
 
 #==============================================================================
 #   ANIMATING THE RESULTS WITH RVIZ
@@ -383,7 +378,7 @@ if var_ani !=0:
     # print np.shape(tau_opt)
 
     
-    pose = fn.RobotPose(j_name,q_opt,qdot_opt,tau_opt,int(1/h_opt))
+    pose = fn.RobotPose(j_name,q_opt,qdot_opt,tau_opt,int(1/0.08))
     # pose.interpolate(rviz_rate)
     if var_rec !=0:
         # os.system("ffmpeg -f x11grab -s 1900x1080 -r 25 -i :0.0 -qscale 5 ~/screenGrab.mpeg")

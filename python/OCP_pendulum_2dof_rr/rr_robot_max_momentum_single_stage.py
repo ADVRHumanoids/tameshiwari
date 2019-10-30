@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python2
 # -*- coding: utf-8 -*-
 
 #   This script is part of Tameshiwari Repository
@@ -120,7 +120,7 @@ if var_inp:
 
 #   SIMULATION PARAMETERS
 N = 120
-h_0 = 0.02
+h_0 = 0.04
 Tf = N*h_0
 Tf_max = 10.
 h_max = float(Tf_max/120)
@@ -438,6 +438,7 @@ if var_pl or var_save:
 
 if var_ani:
     pose.interpolate(rviz_rate)
+    print len(pose.q)
     if var_rec:
         js.posePublisher(pose)
     else:
