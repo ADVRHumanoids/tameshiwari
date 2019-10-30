@@ -17,8 +17,9 @@ from std_msgs.msg import Header
 from cv_bridge import CvBridge, CvBridgeError
 import cv2
 import numpy as np
+import rosbag2video as r2v
 
-bridge = CvBridge()
+# bridge = CvBridge()
 
 # def Callback_test(data):
 #     imgmsg = data
@@ -34,7 +35,8 @@ class SubImage:
         def __init__(self):
             # self.bridge = CvBridge()
             self.imgmsg = CompressedImage()
-            # self.cv_image = 255 * np.ones(shape=[480, 480, 3], dtype=np.uint8)
+            # self.imgmsg = Image()
+            # self.cv_image = 255 * np.ones(shape=[530, 640, 3], dtype=np.uint8)
             # self.fourcc = cv2.VideoWriter_fourcc(*'XVID')
             # self.out = cv2.VideoWriter('output.avi',self.fourcc, 30.0, (480,480))
             print "new class instance has been created"
@@ -45,7 +47,7 @@ class SubImage:
             # print "this message is printed at every time the callback is ran"
             # try:
             #     self.cv_image = bridge.imgmsg_to_cv2(data, "bgra8")
-            #     # print "succes"
+            #     print "succes"
             # except CvBridgeError as e:
             #     print(e)
             # self.out.write(self.cv_image)
@@ -56,25 +58,30 @@ class SubImage:
 
 
 
-def posePublisher(pose,record=False):
+def posePublisher(pose,record=True):
+    if record:
+        # bag = rosbag.Bag('test.bag','w')
+        # imgmsg = Image()
+        # print imgmsg
+        testclass = SubImage()
+        filename = 'test_image.bag'
+        bag = rosbag.Bag(filename,mode='w')
+        # print testclass.imgmsg
+        # fourcc = cv2.VideoWriter_fourcc(*'XVID')
+        # out = cv2.VideoWriter('output.avi',fourcc, 30.0, (480,480))
+        print "start recording now:"
+    
     pub = rospy.Publisher('pose_state', JointState, queue_size=10)
+    # sub = rospy.Subscriber('/rviz1/camera1/image', Image, testclass.callback,tcp_nodelay=True)
+    sub = rospy.Subscriber('/rviz1/camera1/image/compressed', CompressedImage, testclass.callback, tcp_nodelay=True)
+
+
     rospy.init_node('posePublisher', anonymous=True)
     rate = rospy.Rate(pose.rate) # default is 10 Hz
     # rate = rospy.Rate(1)
     state_str = JointState()
     state_str.header = Header()
     iteration = 0
-
-    if record:
-        # bag = rosbag.Bag('test.bag','w')
-        # imgmsg = Image()
-        # print imgmsg
-        testclass = SubImage()
-        bag = rosbag.Bag('test_image.bag',mode='w')
-        # print testclass.imgmsg
-        # fourcc = cv2.VideoWriter_fourcc(*'XVID')
-        # out = cv2.VideoWriter('output.avi',fourcc, 30.0, (480,480))
-        print "start recording now:"
     
     while not rospy.is_shutdown() and iteration < pose.q.shape[0]:
         now = rospy.get_rostime()
@@ -89,11 +96,10 @@ def posePublisher(pose,record=False):
         # rospy.loginfo(state_str)            # use for debugging
         pub.publish(state_str)
         if record:
-            # sub = rospy.Subscriber('/rviz1/camera1/image', Image, testclass.callback,tcp_nodelay=True)
             # sub = rospy.Subscriber('/rviz1/camera1/image', Image, testclass.callback, queue_size=10)
-            sub = rospy.Subscriber('/rviz1/camera1/image/compressed', CompressedImage, testclass.callback, tcp_nodelay=True)
             
-            bag.write('camera1/image/compressed',testclass.imgmsg)
+            bag.write('camera1/image',testclass.imgmsg)
+            # bag.write('camera1/cv_img',testclass.cv_image)
 
             # filename = 'frame_' + str(iteration) + '.jpeg'
             # print filename
@@ -117,6 +123,7 @@ def posePublisher(pose,record=False):
         print "stop recording now:"
         testclass.finish()
         bag.close()
+
         # out.release()
         # testclass.out.release()
         # print "video has been released to 'output.avi' in the same folder"

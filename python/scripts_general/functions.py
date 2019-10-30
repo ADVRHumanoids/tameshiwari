@@ -156,6 +156,7 @@ class RobotPose:
                         qdot_new[-1,j] = np.polyval(xdot,T_new[-1])
             self.q = q_new
             self.qdot = qdot_new
+            self.tau = np.zeros([N_new,self.nj])
             self.T = T_new
             self.rate = drate
             self.N = N_new
