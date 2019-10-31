@@ -49,28 +49,29 @@ from datetime import datetime
 #==============================================================================
 
 import functions as fn
-import rec_joint_state as js
-# import joint_state as js
+# import rec_joint_state as js
+import joint_state as js
 import init_state
 import tameshiwari.pynocchio_casadi as pyn
 
 # =============================================================================
 #   INITIALIZATION
 # =============================================================================
-var_pl      = False
+var_pl      = True
 var_ani     = True
 var_rec     = False
 var_inp     = False
 var_save    = False
 var_h_opt   = False
 
-init_state.homing()
+if var_ani:
+    init_state.homing()
 
 # =============================================================================
 #   WEIGHTENING 
 # =============================================================================
 #   DEFAULT VALUES
-W = 1.0
+W = 0.2
 W_h = 1.0
 
 # TODO: Change the weighenings to have effect on the proper values
@@ -125,7 +126,7 @@ if var_inp:
 #   SIMULATION PARAMETERS
 N = 120
 M = 2           # multi-stage coefficient
-N_stage = [N, 120]
+N_stage = [N, 30]
 N_tot = np.sum(N_stage)
 print N_tot
 Tf = 3.
@@ -135,7 +136,7 @@ h_min = 0
 h_max = float(Tf_max/N)
 print h_max
 T = np.arange(0,Tf+h_0,h_0)
-T =  T.reshape(-1,1)
+T = T.reshape(-1,1)
 iter_max = 0
 rviz_rate = 30
 
@@ -361,13 +362,17 @@ for i in range(M):
             lbg += np.zeros(nj*2).tolist()
             ubg += np.zeros(nj*2).tolist()
 
-        #   TERMINAL VELOCITY CONSTRAINT
-        jacEE_k = jacEE(q=qk)['J']
-        EE_vel_k = mtimes(jacEE_k,qdotk)
-        EE_vel_yk = EE_vel_k[1]
-        EE_vel_zk = EE_vel_k[2]
-        #   Resolved overconstraint on velocity
-        g += [EE_vel_yk, EE_vel_zk]
+        # #   TERMINAL CONFIGURATION-SPACE VELOCITY CONSTRAINT
+        # jacEE_k = jacEE(q=qk)['J']
+        # EE_vel_k = mtimes(jacEE_k,qdotk)
+        # EE_vel_yk = EE_vel_k[1]
+        # EE_vel_zk = EE_vel_k[2]
+        # #   Resolved overconstraint on velocity
+        # g += [EE_vel_yk, EE_vel_zk]
+        # lbg += np.zeros(2).tolist()
+        # ubg += np.zeros(2).tolist()
+        #   TERMINAL JOINT-SPACE VELOCITY CONSTRAINT
+        g += [qdotk]
         lbg += np.zeros(2).tolist()
         ubg += np.zeros(2).tolist()
         #   TERMINAL COST 
@@ -472,9 +477,9 @@ print "This position is w.r.t. origin of joint 1"
 #==============================================================================
 
 if var_pl or var_save:
-    pose.plot_q(show=var_pl,save=var_save,title=True,block=False,lb=lbq,ub=ubq,limits=True)
+    # pose.plot_q(show=var_pl,save=var_save,title=True,block=False,lb=lbq,ub=ubq,limits=True)
     pose.plot_qdot(show=var_pl,save=var_save,title=True,block=False,lb=lbqdot,ub=ubqdot,limits=True)
-    pose.plot_qddot(show=var_pl,save=var_save,title=True,block=False)
+    # pose.plot_qddot(show=var_pl,save=var_save,title=True,block=False)
     tau_lim = np.matlib.repmat(ubtau,pose.N,1)
     pose.plot_tau(show=var_pl,save=var_save,title=True,block=False,lb=-tau_lim,ub=tau_lim,limits=True)
     # pose.plot_joint(joint=1,nq=2,show=False,save=False,title=True,block=False)
