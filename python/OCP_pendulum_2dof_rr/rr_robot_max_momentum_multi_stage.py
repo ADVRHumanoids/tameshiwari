@@ -126,7 +126,7 @@ if var_inp:
 #   SIMULATION PARAMETERS
 N = 120
 M = 2           # multi-stage coefficient
-N_stage = [N, 30]
+N_stage = [N, 60]
 N_tot = np.sum(N_stage)
 print N_tot
 Tf = 3.

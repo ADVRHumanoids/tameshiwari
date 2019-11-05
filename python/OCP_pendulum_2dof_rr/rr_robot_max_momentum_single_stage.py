@@ -55,7 +55,7 @@ import tameshiwari.pynocchio_casadi as pyn
 # =============================================================================
 #   INITIALIZATION
 # =============================================================================
-var_pl      = False
+var_pl      = True
 var_ani     = True
 var_rec     = False
 var_inp     = False
@@ -418,10 +418,10 @@ print "This position is w.r.t. origin of joint 1"
 
 if var_pl or var_save:
     pose.plot_q(show=var_pl,save=var_save,title=True,block=False,lb=lbq,ub=ubq,limits=True)
-    pose.plot_qdot(show=var_pl,save=var_save,title=True,block=False,lb=lbqdot,ub=ubqdot,limits=True)
-    pose.plot_qddot(show=var_pl,save=var_save,title=True,block=False)
-    tau_lim = np.matlib.repmat(ubtau,pose.N,1)
-    pose.plot_tau(show=var_pl,save=var_save,title=True,block=False,lb=-tau_lim,ub=tau_lim,limits=True)
+    # pose.plot_qdot(show=var_pl,save=var_save,title=True,block=False,lb=lbqdot,ub=ubqdot,limits=True)
+    # pose.plot_qddot(show=var_pl,save=var_save,title=True,block=False)
+    # tau_lim = np.matlib.repmat(ubtau,pose.N,1)
+    # pose.plot_tau(show=var_pl,save=var_save,title=True,block=False,lb=-tau_lim,ub=tau_lim,limits=True)
     # pose.plot_joint(joint=1,nq=2,show=False,save=False,title=True,block=False)
     # pose.plot_joint(joint=2,nq=2,show=False,save=False,title=True,block=False)
 

@@ -222,15 +222,21 @@ class RobotPose:
         fileName = "%s/%s%s_%s%s" % (dirName,suffix,fileName,str_time,ext)
         matplotlib2tikz.save(fileName)
 
-    def plot_q(self,show=True,save=False,title=True,grid=True,legend_str='',block=True,lb=[],ub=[],limits=False):
+    def plot_q(self,show=True,save=False,title=True,grid=True,legend_str='',block=True,lb=[],ub=[],limits=False,Tvec=[]):
+        if len(Tvec) == 0:
+            Tvec = self.T
+        
         fig, ax = plt.subplots()
-        ax.plot(self.T,self.q)
+        # ax.plot(self.T,self.q)
+        ax.plot(Tvec,self.q)
 
         if limits:
             if len(lb)==self.nj:
                 for i in range(self.nj):
-                    ax.plot(self.T[[0,-1]],[ub[i],ub[i]], color=colors[i], linestyle='dashed')
-                    ax.plot(self.T[[0,-1]],[lb[i],lb[i]], color=colors[i], linestyle='dashed')
+                    # ax.plot(self.T[[0,-1]],[ub[i],ub[i]], color=colors[i], linestyle='dashed')
+                    # ax.plot(self.T[[0,-1]],[lb[i],lb[i]], color=colors[i], linestyle='dashed')
+                    ax.plot(Tvec[[0,-1]],[ub[i],ub[i]], color=colors[i], linestyle='dashed')
+                    ax.plot(Tvec[[0,-1]],[lb[i],lb[i]], color=colors[i], linestyle='dashed')
 
         ax.set_xlabel("time [s]")
         ax.set_ylabel("$\\theta$ [rad]")
@@ -242,20 +248,27 @@ class RobotPose:
             for i in range(self.nj):
                 legend_str += ["$q_{%s}$" % (i+1)]
         ax.legend(legend_str)
+        ax.set_xlim(0,Tvec[-1])
         if show:
             plt.show(block)
         if save:
             self.savePlot(suffix='Plot_q_')
 
-    def plot_qdot(self,show=True,save=False,title=True,grid=True,legend_str='',block=True,lb=[],ub=[],limits=False):
+    def plot_qdot(self,show=True,save=False,title=True,grid=True,legend_str='',block=True,lb=[],ub=[],limits=False,Tvec=[]):
+        if len(Tvec) == 0:
+            Tvec = self.T
+
         fig, ax = plt.subplots()
-        ax.plot(self.T,self.qdot)
+        # ax.plot(self.T,self.qdot)
+        ax.plot(Tvec,self.qdot)
 
         if limits:
             if len(lb)==self.nj:
                 for i in range(self.nj):
-                    ax.plot(self.T[[0,-1]],[ub[i],ub[i]], color=colors[i], linestyle='dashed')
-                    ax.plot(self.T[[0,-1]],[lb[i],lb[i]], color=colors[i], linestyle='dashed')
+                    # ax.plot(self.T[[0,-1]],[ub[i],ub[i]], color=colors[i], linestyle='dashed')
+                    # ax.plot(self.T[[0,-1]],[lb[i],lb[i]], color=colors[i], linestyle='dashed')
+                    ax.plot(Tvec[[0,-1]],[ub[i],ub[i]], color=colors[i], linestyle='dashed')
+                    ax.plot(Tvec[[0,-1]],[lb[i],lb[i]], color=colors[i], linestyle='dashed')
 
         ax.set_xlabel("time [s]")
         ax.set_ylabel("$\\dot{\\theta}$ [rad/s]")
@@ -267,14 +280,27 @@ class RobotPose:
             for i in range(self.nj):
                 legend_str += ["$\\dot{q}_{%s}$" % (i+1)]
         ax.legend(legend_str)
+        ax.set_xlim(0,Tvec[-1])
         if show:
             plt.show(block)
         if save:
             self.savePlot(suffix='Plot_qdot_')
 
-    def plot_qddot(self,show=True,save=False,title=True,grid=True,legend_str='',block=True,lb=[],ub=[],limits=False):
+    def plot_qddot(self,show=True,save=False,title=True,grid=True,legend_str='',block=True,lb=[],ub=[],limits=False,Tvec=[]):
+        if len(Tvec) == 0:
+            Tvec = self.T
+
         fig, ax = plt.subplots()
-        ax.plot(self.T,self.qddot)
+        # ax.plot(self.T,self.qddot)
+        ax.plot(Tvec,self.qddot)
+
+        # if limits:
+        #     if len(lb)==self.nj:
+        #         for i in range(self.nj):
+        #             # ax.plot(self.T[[0,-1]],[ub[i],ub[i]], color=colors[i], linestyle='dashed')
+        #             # ax.plot(self.T[[0,-1]],[lb[i],lb[i]], color=colors[i], linestyle='dashed')
+        #             ax.plot(Tvec[[0,-1]],[ub[i],ub[i]], color=colors[i], linestyle='dashed')
+        #             ax.plot(Tvec[[0,-1]],[lb[i],lb[i]], color=colors[i], linestyle='dashed')
 
         ax.set_xlabel("time [s]")
         ax.set_ylabel("$\\ddot{\\theta}$ [rad/s$^2$]")
@@ -286,21 +312,29 @@ class RobotPose:
             for i in range(self.nj):
                 legend_str += ["$\\ddot{q}_{%s}$" % (i+1)]
         ax.legend(legend_str)
+        ax.set_xlim(0,Tvec[-1])
         if show:
             plt.show(block)
         if save:
             self.savePlot(suffix='Plot_qddot_')
 
-    def plot_tau(self,show=True,save=False,title=True,grid=True,legend_str='',block=True,lb=[],ub=[],limits=False):
+    def plot_tau(self,show=True,save=False,title=True,grid=True,legend_str='',block=True,lb=[],ub=[],limits=False,Tvec=[]):
+        if len(Tvec) == 0:
+            Tvec = self.T
+        
         fig, ax = plt.subplots()
-        tau_plot = np.vstack((self.tau,self.tau[-1,:]))
-        tau_plot[0,:] = DM.nan(1,self.nj).full()
+        # tau_plot = np.vstack((self.tau,self.tau[-1,:]))
+        tau_plot = self.tau
+        # print np.shape(tau_plot)
+        # tau_plot[0,:] = DM.nan(1,self.nj).full()
         # ax.step(self.T,tau_plot)
-        ax.step(self.T,self.tau)
+        # ax.step(self.T,self.tau)
+        ax.step(Tvec,self.tau, where='post')
+        # ax.step(Tvec,self.tau)
         if limits:
             for i in range(self.nj):
-                ax.step(self.T,ub[:,i], where='post', color=colors[i], linestyle='dashed')
-                ax.step(self.T,lb[:,i], where='post', color=colors[i], linestyle='dashed')
+                ax.step(Tvec,ub[:,i], where='post', color=colors[i], linestyle='dashed')
+                ax.step(Tvec,lb[:,i], where='post', color=colors[i], linestyle='dashed')
 
         ax.set_xlabel("time [s]")
         ax.set_ylabel("$\\tau$ [Nm]")
@@ -312,7 +346,7 @@ class RobotPose:
             for i in range(self.nj):
                 legend_str += ["$\\tau_{%s}$" % (i+1)]
         ax.legend(legend_str)
-        ax.set_xlim(0,self.Tf)
+        ax.set_xlim(0,Tvec[-1])
         if show:
             plt.show(block)
         if save:
