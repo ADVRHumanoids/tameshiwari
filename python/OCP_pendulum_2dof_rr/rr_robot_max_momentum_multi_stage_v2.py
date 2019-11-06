@@ -64,9 +64,9 @@ var_inp     = False
 var_save    = False
 var_h_opt   = True
 
-if var_ani:
-    # TODO: create functionality to choose homing position, default q = 0
-    init_state.homing()
+# if var_ani:
+#     # TODO: create functionality to choose homing position, default q = 0
+#     init_state.homing()
 
 # =============================================================================
 #   WEIGHTENING 
@@ -164,16 +164,27 @@ ubh = (Tf_ub/N_stage).flatten().tolist()
 #   INITIAL CONDITIONS (NUMERICAL)
 nj = 2
 nq = 3 # number of different q's --> q(t), qdot(t), qddot(t)
-q_0 = np.zeros(nj).tolist()
-# q_0 = np.array([np.pi*3/4,np.pi/2]).reshape(-1,2)
-# q_0_vec = np.matlib.linspace(0,np.pi,N+1).reshape(-1,1)
-# q_0_vec = np.hstack((q_0_vec,np.zeros([N+1,1]))) #.reshape(-1,1).flatten().tolist()
-q_0_vec = np.zeros([N+1,nj])
+# q_0 = np.zeros(nj).tolist()
+q_0 = [30, 130]
+q_0 = np.deg2rad(q_0).tolist()
+# q_0 = np.array([np.pi*3/4,np.pi/2]).reshape(-1,2).flatten().tolist()
+q_0_vec = np.matlib.repmat(np.array(q_0),N_tot+1,1)
+# q_0_vec = np.matlib.linspace(0,np.pi,N_tot+1).reshape(-1,1)
+# q_0_vec = np.hstack((q_0_vec,np.zeros([N_tot+1,1]))) #.reshape(-1,1).flatten().tolist()
+# print q_0
+# print np.shape(q_0_vec)
+# q_0_vec = np.zeros([N_tot+1,nj])
+# print q_0_vec
 # q_0_vec = np.ones([N+1,nj]) * q_0
 qdot_0 = np.zeros(nj).tolist()
 qddot_0 = np.zeros(nj).tolist()
 # qddot_0 = np.ones(nj,dtype=float)* 0.5
 # qddot_0 = qddot_0.tolist()
+
+#   HOMING TO INITIAL POSITION
+if var_ani:
+    # TODO: create functionality to choose homing position, default q = 0
+    init_state.homing(q_0)
 
 #   TERMINAL CONDITIONS (NUMERICAL)
 J01_pos = [0.0, 0.0, 1.2]
@@ -181,8 +192,8 @@ offsetX = 0.0800682
 offsetY = 0
 offsetZ = 1.2
 desX = 0
-# desY = 0.797
-desY = 0.65
+desY = 0.797
+# desY = 0.65
 desZ = 0
 EE_pos_N = [desX+offsetX, desY+offsetY, desZ+offsetZ]
 qdot_N = np.zeros(nj).tolist()
@@ -208,7 +219,7 @@ lbtau = ubtau*-1
 print ubtau
 print lbtau
 #   ACCELERATION BOUNDS
-ubqddot = [inf, inf]
+ubqddot = [100, 100]
 lbqddot = [x*-1 for x in ubqddot]
 # print ubqddot
 # print type(ubqddot)
@@ -298,8 +309,11 @@ w0 += q_0_vec[0,:].tolist() + qdot_0 + qddot_0
 # lbg += np.zeros(nj*nq).tolist()
 # ubg += np.zeros(nj*nq).tolist()
 g += [qk,qdotk]
-lbg += np.zeros(nj*2).tolist()
-ubg += np.zeros(nj*2).tolist()
+lbg += q_0 + np.zeros(nj).tolist()
+ubg += q_0 + np.zeros(nj).tolist()
+# g += [qk,qdotk]
+# lbg += np.zeros(nj*2).tolist()
+# ubg += np.zeros(nj*2).tolist()
 factor = np.ones(N_stage[0])
 steps = 10
 factor[-steps:] = np.matlib.linspace(1,0,steps)
@@ -332,7 +346,9 @@ for Mi in range(M):
 
             #   INTEGRAL COST CONTRIBUTION
             if var_h_opt:
-                L = W_h * h**2
+                # L = W_h * h**2
+                # L = h*dot(tauk,qdotk)*0.001
+                L = 0
                 # L = -h*dot(tauk,tauk)*
             else:
                 L = 0
@@ -435,7 +451,7 @@ for Mi in range(M):
             w += [qk,qdotk,qddotk]
             lbw += lbq + lbqdot + lbqddot
             ubw += ubq + ubqdot + ubqddot
-            w0 += q_0 + qdot_0 + qddot_0
+            w0 += q_0_vec[k+1,:].tolist() + qdot_0 + qddot_0
 
             # L = dot(qk-qk_next,qk-qk_next)
             # # L = dot(qdotk,qdotk)
