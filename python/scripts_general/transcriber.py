@@ -19,6 +19,8 @@ from casadi import *
 import numpy as np
 
 class DirectTranscription:
+    # This is the transcription class which takes as input the different 
+    # optimization variables and constraints.
     def __init__(self):
         # OPTIMIZATION VARIABLES
         self.w = []
@@ -55,7 +57,7 @@ class DirectTranscription:
         # of a stage.
 
         # Create class for a variable that keeps track of all indexers etc
-
+        pass
         
 
     def addConstraint():
@@ -70,3 +72,25 @@ class DirectTranscription:
         # transcription to take all the input data of the class into a solvable
         # NLP.
         pass
+
+
+class BaseVariable:
+    # This will be the parent class of several subclasses: optimization variable,
+    # (in)equality constraint, objective function, etc.
+    def __init__(self,size=1,name='x'):
+        self.str = name
+        self.size = size
+
+    def add
+
+
+class OptVariable(BaseVariable):
+    # This class is used to create Optimization variables
+    
+    def addInitialCondition(self):
+        pass
+
+class OptConstraint(BaseVariable):
+    # This class is used to create Constraints
+    pass
+
