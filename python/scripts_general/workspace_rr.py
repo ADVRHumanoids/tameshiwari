@@ -153,7 +153,7 @@ z2[arg1+1:arg2] = z_arc
 
 plt.figure()
 plt.clf()
-plt.fill(y,z,"b",y2,z2,"b")
+plt.fill(y,z,"lightblue",y2,z2,"lightblue")
 # plt.fill(y2,z2)
 plt.scatter(y_check,z_check,s=150,c="r",marker="+",zorder=10)
 # plt.scatter(y[arg2],z[arg2],s=50,c="k",marker="+")

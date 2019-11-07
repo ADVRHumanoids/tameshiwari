@@ -73,6 +73,17 @@ nj = 2
 # print sum2(a)
 N = 20
 factor = np.ones(20)
+print factor[0:3]
 print factor
 factor[-5:] = np.matlib.linspace(1,0,5)
 print factor
+
+
+Tf0_list = [1, 1]
+Tf0_vec = np.asfarray(np.array(Tf0_list,ndmin=2))
+Tf_lb = [Tf0_list[0], 0.05]
+Tf_lb = np.asfarray(np.array(Tf_lb,ndmin=2))
+Tf_ub = [Tf0_list[0], 3]
+Tf_ub = np.asfarray(np.array(Tf_ub,ndmin=2))
+print Tf0_vec
+print Tf_lb

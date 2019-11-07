@@ -30,6 +30,8 @@
 #
 #==============================================================================
 
+#   v3 integrates the new cas_pyn library which delivers extended functionality
+
 #==============================================================================
 #   RELEASED PACKAGES
 #==============================================================================
@@ -53,7 +55,7 @@ import functions as fn
 import joint_state as js
 import init_state
 import tameshiwari.pynocchio_casadi as pyn
-# import casadi_kin_dyn.pycasadi_kin_dyn as casadi_kin_dyn
+import casadi_kin_dyn.pycasadi_kin_dyn as cas_kin_dyn
 
 # =============================================================================
 #   INITIALIZATION
@@ -146,11 +148,11 @@ iter_max = 0
 rviz_rate = 30
 
 N_tot = np.sum(N_stage)
-Tf0_vec = [3, 1]
-Tf0_vec = np.asfarray(np.array(Tf0_vec,ndmin=2))
-Tf_lb = [3, 0.05]
+Tf0_list = [3, 1]
+Tf0_vec = np.asfarray(np.array(Tf0_list,ndmin=2))
+Tf_lb = [Tf0_list[0], 0.05]
 Tf_lb = np.asfarray(np.array(Tf_lb,ndmin=2))
-Tf_ub = [3, 3]
+Tf_ub = [Tf0_list[0], 3]
 Tf_ub = np.asfarray(np.array(Tf_ub,ndmin=2))
 
 h0_vec = (Tf0_vec/N_stage).flatten().tolist()
@@ -167,7 +169,9 @@ nj = 2
 nq = 3 # number of different q's --> q(t), qdot(t), qddot(t)
 # q_0 = np.zeros(nj).tolist()
 q_0 = [30, 130]
+# q_0 = [0, 0]
 q_0 = np.deg2rad(q_0).tolist()
+print q_0
 # q_0 = np.array([np.pi*3/4,np.pi/2]).reshape(-1,2).flatten().tolist()
 q_0_vec = np.matlib.repmat(np.array(q_0),N_tot+1,1)
 # q_0_vec = np.matlib.linspace(0,np.pi,N_tot+1).reshape(-1,1)
@@ -193,9 +197,11 @@ offsetX = 0.0800682
 offsetY = 0
 offsetZ = 1.2
 desX = 0
-desY = 0.797
-# desY = 0.65
-desZ = 0
+# desY = 0.797
+desY = 0.65
+# desZ = 0
+desY = 0.5
+desZ = 0.4
 EE_pos_N = [desX+offsetX, desY+offsetY, desZ+offsetZ]
 qdot_N = np.zeros(nj).tolist()
 qddot_N = np.zeros(nj).tolist()
@@ -203,14 +209,16 @@ qddot_N = np.zeros(nj).tolist()
 #   STATE & CONTROL BOUNDS
 #   POSITION BOUNDS
 lbq_deg = [-95, -20]
+# lbq_deg = [-95, 10]
 ubq_deg = [195, 145]
 lbq = np.deg2rad(lbq_deg).tolist()
 ubq = np.deg2rad(ubq_deg).tolist()
 #   VELOCITY BOUNDS
 ubqdot = [3.9, 6.1]
+# ubqdot = [10, 10]
 lbqdot = [x*-1 for x in ubqdot]
 #   TORQUE BOUNDS
-W_tau = [0.4, 0.6]
+W_tau = [0.2, 0.9]
 tau_lim_orange = 147.
 tau_lim_yellow = 147.
 tau_lim = np.array([tau_lim_orange, tau_lim_yellow],ndmin=2).transpose()
@@ -232,38 +240,48 @@ lbqddot = [x*-1 for x in ubqddot]
 # =============================================================================
 
 urdf = rospy.get_param('robot_description')
-# kindyn = cas_kin_dyn.CasadiKinDyn(urdf)
-# id_string = kindyn.rnea()
-id_string = pyn.generate_inv_dyn(urdf)
+kindyn = cas_kin_dyn.CasadiKinDyn(urdf)
+id_string = kindyn.rnea()
+# id_string = pyn.generate_inv_dyn(urdf)
+# invDyn = Function.deserialize(id_string)
 invDyn = Function.deserialize(id_string)
-print id_string
+print invDyn
 print ""
 
 # =============================================================================
 #   FORWARD KINEMATICS
 # =============================================================================
 
-fk_string = pyn.generate_forward_kin(urdf,'EE')
+# fk_string = pyn.generate_forward_kin(urdf,'EE')
+fk_string = kindyn.fk('EE')
 forKin = Function.deserialize(fk_string)
 print fk_string
 print ""
-
 
 # =============================================================================
 #   JACOBIAN OF END-EFFECTOR
 # =============================================================================
 
-jacEE_string = pyn.generate_jacobian(urdf,'EE')
+# jacEE_string = pyn.generate_jacobian(urdf,'EE')
+jacEE_string = kindyn.jacobian('EE')
 jacEE = Function.deserialize(jacEE_string)
 print jacEE_string
 print ""
 
 # =============================================================================
+#   JOINT-SPACE INERTIA MATRIX
+# =============================================================================
+
+B_string = kindyn.crba()
+B_js = Function.deserialize(B_string)
+
+# =============================================================================
 #   DEBUG AREA
 # =============================================================================
 
-# print forKin
-# print jacEE
+print forKin
+print jacEE
+print B_js
 
 # =============================================================================
 #   NONLINEAR PROGRAM --> FIND A SOLUTION FOR THE OPTIMAL CONTROL INPUT
@@ -336,7 +354,7 @@ for Mi in range(M):
             # ubg += [inf]
 
             #   NEW NLP VARIABLE FOR THE CONTROL
-            tauk = invDyn(q=qk,qdot=qdotk,qddot=qddotk)['tau']
+            tauk = invDyn(q=qk,v=qdotk,a=qddotk)['tau']
             # tau_ind += [np.shape(g)[0]*2,np.shape(g)[0]*2+1]
             tau_ind += [len(lbg),len(lbg)+1]
             g += [tauk]
@@ -393,9 +411,12 @@ for Mi in range(M):
         jacEE_N = jacEE(q=qk)['J']
         EE_vel_N = mtimes(jacEE_N,qdotk)
         EE_vel_zN = EE_vel_N[2]
-        g += [EE_vel_zN]
-        lbg += [-inf]
-        ubg += [0]
+        
+        EE_vel_z_constr = False
+        if EE_vel_z_constr:
+            g += [EE_vel_zN]
+            lbg += [-inf]
+            ubg += [0]
 
         #   MAXIMUM ANGULAR VELOCITY
         # g += [qdotk]
@@ -404,8 +425,26 @@ for Mi in range(M):
 
         #   TERMINAL COST 
         #   IS GOING TO BE -1*EE_VEL_K
-        E = -1*dot(EE_vel_zN,EE_vel_zN)
+        # E = -1*dot(EE_vel_zN,EE_vel_zN)
+        # J += E
+
+        #   TERMINAL COST --> MOMENTUM MAXIMIZATION
+        B_N = B_js(q=qk)['B']
+        # Lambda_ee_N = inv(mtimes(mtimes(jacEE_N,inv(B_N)),jacEE_N.T))
+        # Lambda_ee_N = inv(mtimes(jacEE_N,mtimes(inv(B_N),jacEE_N.T)))
+        Lambda_ee_N = mtimes(mtimes(pinv(jacEE_N).T,B_N),pinv(jacEE_N))
+        h_ee_N = mtimes(Lambda_ee_N,EE_vel_N)
+        h_ee_zN = h_ee_N[2]
+        h_ee_yN = h_ee_N[1]
+        h_ee_linN = h_ee_N[0:3]
+        # E = -dot(h_ee_zN,h_ee_zN)
+        # E = -dot(h_ee_N,h_ee_N)
+        # E = -dot(h_ee_linN,h_ee_linN)
+        # E = -dot(h_ee_yN,h_ee_yN) + dot(h_ee_zN,h_ee_zN)
+        E = -dot(h_ee_yN,h_ee_yN)
+        # E = -mtimes(h_ee_linN.T,h_ee_linN)
         J += E
+
     else:
         h = MX.sym('h_stage_2')
         w += [h]
@@ -415,7 +454,7 @@ for Mi in range(M):
 
         for k in range(N_stage[Mi-1],N_stage[Mi]+N_stage[Mi-1]):
             #   NEW NLP VARIABLE FOR THE CONTROL
-            tauk = invDyn(q=qk,qdot=qdotk,qddot=qddotk)['tau']
+            tauk = invDyn(q=qk,v=qdotk,a=qddotk)['tau']
             # print tauk
             # tau_ind += [np.shape(g)[0]*2-2,np.shape(g)[0]*2-1]
             tau_ind += [len(lbg),len(lbg)+1]
@@ -603,12 +642,20 @@ impact_ind = N_stage[0]
 jacEE_opt = jacEE(q=q_opt[impact_ind,:])['J']
 # print jacEE_opt
 EE_vel_opt = mtimes(jacEE_opt,qdot_opt[impact_ind,:])
+B_opt = B_js(q=q_opt[impact_ind,:])['B']
+Lambda_ee_opt = mtimes(mtimes(pinv(jacEE_opt).T,B_opt),pinv(jacEE_opt))
+h_ee_opt = mtimes(Lambda_ee_opt,EE_vel_opt)
+h_ee_zopt = h_ee_opt[2]
+h_ee_linopt = h_ee_opt[0:3]
+h_ee_resultant = np.linalg.norm(h_ee_linopt)
 # EE_vel_opt = np.matmul(jacEE_opt,np.transpose(qdot_opt[-1,:]))
 print "The optimized final EE linear velocity: %s [m/s]" %EE_vel_opt[0:3]
 print "The optimized final EE rotational velocity: %s [rad/s]" %EE_vel_opt[3:]
 EE_vel_zopt = EE_vel_opt[2]
 print "The optimized final EE velocity along the z-axis: %s [m/s]" %EE_vel_zopt
 EE_pos = forKin(q=q_opt[impact_ind,:])['ee_pos']
+print "The optimized final momentum h_e: %s [kg m/s]" %h_ee_linopt
+print "The optimized final momentum ||h_e||_2: %s [kg m/s]" %h_ee_resultant
 print "The optimized final EE cartesian position: %s [m]" %(EE_pos - J01_pos)
 print "This position is w.r.t. origin of joint 1"
 
@@ -632,8 +679,123 @@ if var_pl or var_save:
     #PLOT THE EE POSITION OF THE SIMULATION AND THE DESIRED POSITION
     plt.figure()
     c_range = range(N_tot+1)
-    plt.scatter(xyz[:,1],xyz[:,2],c=c_range,cmap='Greens')
+    var_workspace = True
+    if var_workspace:
+        # =============================================================================
+        #   PARAMETERSS
+        # =============================================================================
+        #   ANGULAR BOUNDS
+        lbq_deg = [-95, -20]
+        ubq_deg = [195, 145]
+        lbq = np.deg2rad(lbq_deg).tolist()
+        ubq = np.deg2rad(ubq_deg).tolist()
+
+        pos_world = EE_pos_N[0:2] # y,z    x is neglected
+        pos_world = [0, 1.2] # y,z    x is neglected
+
+        #   VALUES TO CHECK
+        y_check = EE_pos_N[1]
+        z_check = EE_pos_N[2]
+
+        # y_check += pos_world[0]
+        # z_check += pos_world[1]
+
+        # =============================================================================
+        #   PLOT REGION OF ADMISSIBLE CONFIGURATIONS
+        # =============================================================================
+        #               | q_2
+        #       A_______|_______________B
+        #       |       |               |
+        #       |       |               |
+        #       |       |               |
+        #   ------------------------------------q_1
+        #       |       |               |
+        #       |       |               |
+        #       |       |               |
+        #       D_______|_______________C
+        #               | 
+
+        N = 200
+        Nt = 4*N
+
+        AB = [lbq[0],ubq[0]]        # q_1 changes, q_2 constant
+        AB_q1 = np.matlib.linspace(AB[0],AB[1],N+1)
+        AB_q2 = np.matlib.repmat(ubq[1],1,N+1).flatten()
+        BC = [ubq[1],lbq[1]]        # q_1 constant, q_2 changes
+        BC_q1 = np.matlib.repmat(ubq[0],1,N+1).flatten()
+        BC_q2 = np.matlib.linspace(BC[0],BC[1],N+1)
+        CD = [ubq[0],lbq[0]]        # q_1 changes, q_2 constant
+        CD_q1 = np.matlib.linspace(CD[0],CD[1],N+1)
+        CD_q2 = np.matlib.repmat(lbq[1],1,N+1).flatten()
+        DA = [lbq[1],ubq[1]]        # q_1 constant, q_2 changes
+        DA_q1 = np.matlib.repmat(lbq[0],1,N+1).flatten()
+        DA_q2 = np.matlib.linspace(DA[0],DA[1],N+1)
+
+        q1 = np.concatenate((AB_q1[:-1],BC_q1[:-1],CD_q1[:-1],DA_q1[:-1]))
+        q2 = np.concatenate((AB_q2[:-1],BC_q2[:-1],CD_q2[:-1],DA_q2[:-1]))
+
+        # plt.figure()
+        # plt.clf()
+        # plt.scatter(q1,q2)
+        # plt.show()
+
+        y = np.zeros(Nt+1)
+        z = np.zeros(Nt+1)
+        dist = np.zeros(Nt+1)
+
+        for i in range(Nt):
+            location = forKin(q=[q1[i],q2[i]])['ee_pos']
+            y[i] = location[1]
+            z[i] = location[2]
+            dist[i] = np.linalg.norm([y[i],z[i]-1.2])
+        y[-1] = y[0]
+        z[-1] = z[0]
+        dist[-1] = dist[0]
+
+        sec1 = [0, 3*N]
+        sec2 = [3*N, -1]
+        max1 = np.amax(dist[sec1[0]:sec1[1]])
+        arg1 = np.argmax(dist[sec1[0]:sec1[1]])
+        max2 = np.amax(dist[sec2[0]:sec2[1]])
+        arg2 = np.argmax(dist[sec2[0]:sec2[1]]) + sec2[0]
+        # print arg1
+        # print arg2
+        N_sec = arg2 - arg1 - 1 # -1 is to compensate for the true inbetween
+
+        ystart = y[arg1+1] - pos_world[0]
+        zstart = z[arg1+1] - pos_world[1]
+        astart = np.arctan2(zstart,ystart)
+        yend = y[arg2-1] - pos_world[0]
+        zend = z[arg2-1] - pos_world[1]
+        aend = np.arctan2(zend,yend)
+
+        if aend > astart:
+            astart += 2*np.pi
+        # print astart
+        # print aend 
+        angle = np.linspace(astart,aend,N_sec)
+        r = np.amax([max1, max2])
+        y_arc = r * np.cos(angle) + pos_world[0]
+        z_arc = r * np.sin(angle) + pos_world[1]
+        y2 = np.copy(y)
+        z2 = np.copy(z)
+        y2[arg1+1:arg2] = y_arc
+        z2[arg1+1:arg2] = z_arc
+
+
+        # plt.figure()
+        # plt.clf()
+        plt.fill(y,z,"lightblue",alpha=0.2)
+        plt.fill(y2,z2,"lightblue",alpha=0.2)
+        # plt.fill(y2,z2)
+        # plt.scatter(y_check,z_check,s=150,c="r",marker="+",zorder=10)
+        # plt.scatter(y[arg2],z[arg2],s=50,c="k",marker="+")
+    plt.scatter(xyz[:,1],xyz[:,2],c=c_range,cmap='Greens',edgecolor="k",linewidths=0.5)
+    # plt.scatter(xyz[:,1],xyz[:,2],c=c_range,cmap='Greens',marker='+',markeredgewidth=1.5, markeredgecolor='k')
+    plt.scatter(xyz[impact_ind,1],xyz[impact_ind,2],s=150,c="r",marker="+")
+    plt.grid(True)
     plt.show(block=False)
+
 
     if var_pl:
         plt.show()
