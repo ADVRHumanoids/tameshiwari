@@ -168,8 +168,8 @@ ubh = (Tf_ub/N_stage).flatten().tolist()
 nj = 2
 nq = 3 # number of different q's --> q(t), qdot(t), qddot(t)
 # q_0 = np.zeros(nj).tolist()
-q_0 = [30, 130]
-# q_0 = [0, 0]
+# q_0 = [30, 130]
+q_0 = [0, 0]
 q_0 = np.deg2rad(q_0).tolist()
 print q_0
 # q_0 = np.array([np.pi*3/4,np.pi/2]).reshape(-1,2).flatten().tolist()
@@ -197,11 +197,11 @@ offsetX = 0.0800682
 offsetY = 0
 offsetZ = 1.2
 desX = 0
-# desY = 0.797
-desY = 0.65
-# desZ = 0
-desY = 0.5
-desZ = 0.4
+desY = 0.797
+# desY = 0.65
+desZ = 0
+# desY = 0.5
+# desZ = 0.4
 EE_pos_N = [desX+offsetX, desY+offsetY, desZ+offsetZ]
 qdot_N = np.zeros(nj).tolist()
 qddot_N = np.zeros(nj).tolist()
@@ -218,7 +218,7 @@ ubqdot = [3.9, 6.1]
 # ubqdot = [10, 10]
 lbqdot = [x*-1 for x in ubqdot]
 #   TORQUE BOUNDS
-W_tau = [0.2, 0.9]
+W_tau = [0.4, 0.9]
 tau_lim_orange = 147.
 tau_lim_yellow = 147.
 tau_lim = np.array([tau_lim_orange, tau_lim_yellow],ndmin=2).transpose()
@@ -409,10 +409,12 @@ for Mi in range(M):
         #   TERMINAL VELOCITY CONSTRAINT
         #   CONSTRAIN THE Z VELOCITY SUCH THAT THE EE IS GOING TO ARRIVE FROM THE TOP
         jacEE_N = jacEE(q=qk)['J']
+        jacEE_N_ts = jacEE_N[1:3,:] # Task space jacobian
         EE_vel_N = mtimes(jacEE_N,qdotk)
         EE_vel_zN = EE_vel_N[2]
+        EE_vel_N_ts = mtimes(jacEE_N_ts,qdotk) # Task space velocity vector
         
-        EE_vel_z_constr = False
+        EE_vel_z_constr = True
         if EE_vel_z_constr:
             g += [EE_vel_zN]
             lbg += [-inf]
@@ -432,16 +434,21 @@ for Mi in range(M):
         B_N = B_js(q=qk)['B']
         # Lambda_ee_N = inv(mtimes(mtimes(jacEE_N,inv(B_N)),jacEE_N.T))
         # Lambda_ee_N = inv(mtimes(jacEE_N,mtimes(inv(B_N),jacEE_N.T)))
-        Lambda_ee_N = mtimes(mtimes(pinv(jacEE_N).T,B_N),pinv(jacEE_N))
+        Lambda_ee_N = mtimes(mtimes(pinv(jacEE_N).T,B_N),pinv(jacEE_N)) # --> seems to work but is not correct to use
+        # Lambda_ee_N = inv(mtimes(jacEE_N_ts,mtimes(inv(B_N),jacEE_N_ts.T)))
         h_ee_N = mtimes(Lambda_ee_N,EE_vel_N)
+        # h_ee_N_ts = mtimes(Lambda_ee_N,EE_vel_N_ts)
         h_ee_zN = h_ee_N[2]
+        # h_ee_zN_ts = h_ee_N_ts[1]
+        # h_ee_yN_ts = h_ee_N_ts[0]
         h_ee_yN = h_ee_N[1]
-        h_ee_linN = h_ee_N[0:3]
-        # E = -dot(h_ee_zN,h_ee_zN)
+        # h_ee_linN = h_ee_N[0:3]
+        E = -dot(h_ee_zN,h_ee_zN)
         # E = -dot(h_ee_N,h_ee_N)
         # E = -dot(h_ee_linN,h_ee_linN)
         # E = -dot(h_ee_yN,h_ee_yN) + dot(h_ee_zN,h_ee_zN)
-        E = -dot(h_ee_yN,h_ee_yN)
+        # E = -dot(h_ee_yN_ts,h_ee_yN_ts)
+        # E = -dot(h_ee_zN_ts,h_ee_zN_ts)
         # E = -mtimes(h_ee_linN.T,h_ee_linN)
         J += E
 
@@ -640,7 +647,7 @@ print "The optimized final time: Tf_opt = %s" %Tf_opt.flatten().tolist()
 
 impact_ind = N_stage[0]
 jacEE_opt = jacEE(q=q_opt[impact_ind,:])['J']
-# print jacEE_opt
+print jacEE_opt
 EE_vel_opt = mtimes(jacEE_opt,qdot_opt[impact_ind,:])
 B_opt = B_js(q=q_opt[impact_ind,:])['B']
 Lambda_ee_opt = mtimes(mtimes(pinv(jacEE_opt).T,B_opt),pinv(jacEE_opt))
@@ -649,10 +656,12 @@ h_ee_zopt = h_ee_opt[2]
 h_ee_linopt = h_ee_opt[0:3]
 h_ee_resultant = np.linalg.norm(h_ee_linopt)
 # EE_vel_opt = np.matmul(jacEE_opt,np.transpose(qdot_opt[-1,:]))
+print "The jacobian at the impact: \n %s" %jacEE_opt
 print "The optimized final EE linear velocity: %s [m/s]" %EE_vel_opt[0:3]
 print "The optimized final EE rotational velocity: %s [rad/s]" %EE_vel_opt[3:]
 EE_vel_zopt = EE_vel_opt[2]
 print "The optimized final EE velocity along the z-axis: %s [m/s]" %EE_vel_zopt
+print "The optimized final joint velocties: %s [rad/s]" %qdot_opt[impact_ind,:]
 EE_pos = forKin(q=q_opt[impact_ind,:])['ee_pos']
 print "The optimized final momentum h_e: %s [kg m/s]" %h_ee_linopt
 print "The optimized final momentum ||h_e||_2: %s [kg m/s]" %h_ee_resultant
@@ -665,13 +674,13 @@ print "This position is w.r.t. origin of joint 1"
 
 if var_pl or var_save:
     # pose.plot_q(show=var_pl,save=var_save,title=True,block=False,lb=lbq,ub=ubq,limits=True,Tvec=T_opt)
-    pose.plot_qdot(show=var_pl,save=var_save,title=True,block=False,lb=lbqdot,ub=ubqdot,limits=True,Tvec=T_opt)
+    # pose.plot_qdot(show=var_pl,save=var_save,title=True,block=False,lb=lbqdot,ub=ubqdot,limits=True,Tvec=T_opt)
     # pose.plot_qddot(show=var_pl,save=var_save,title=True,block=False,Tvec=T_opt)
     # tau_lim = np.matlib.repmat(ubtau,pose.N,1)
     ubtau_plt = np.zeros([N_tot+1,nj])
     ubtau_plt[0:N_cum[0]] = np.matlib.repmat(ubtau[:,0].reshape(1,-1),N_cum[0],1)
     ubtau_plt[N_cum[0]:] = np.matlib.repmat(ubtau[:,1].reshape(1,-1),N_stage[1]+1,1)
-    pose.plot_tau(show=var_pl,save=var_save,title=True,block=False,lb=-ubtau_plt,ub=ubtau_plt,limits=True,Tvec=T_opt)
+    # pose.plot_tau(show=var_pl,save=var_save,title=True,block=False,lb=-ubtau_plt,ub=ubtau_plt,limits=True,Tvec=T_opt)
     
     # pose.plot_joint(joint=1,nq=2,show=False,save=False,title=True,block=False)
     # pose.plot_joint(joint=2,nq=2,show=False,save=False,title=True,block=False)
@@ -785,15 +794,29 @@ if var_pl or var_save:
 
         # plt.figure()
         # plt.clf()
-        plt.fill(y,z,"lightblue",alpha=0.2)
-        plt.fill(y2,z2,"lightblue",alpha=0.2)
         # plt.fill(y2,z2)
         # plt.scatter(y_check,z_check,s=150,c="r",marker="+",zorder=10)
         # plt.scatter(y[arg2],z[arg2],s=50,c="k",marker="+")
+    plt.fill(y,z,"lightblue",alpha=0.2)
+    plt.fill(y2,z2,"lightblue",alpha=0.2)
     plt.scatter(xyz[:,1],xyz[:,2],c=c_range,cmap='Greens',edgecolor="k",linewidths=0.5)
     # plt.scatter(xyz[:,1],xyz[:,2],c=c_range,cmap='Greens',marker='+',markeredgewidth=1.5, markeredgecolor='k')
     plt.scatter(xyz[impact_ind,1],xyz[impact_ind,2],s=150,c="r",marker="+")
     plt.grid(True)
+    plt.show(block=False)
+
+    EE_vel_T_ts = np.zeros([N_stage[0]+1,nj])
+    for i in range(N_stage[0]+1):
+        jacEE_Ti = jacEE(q=q_opt[i,:])['J']
+        jacEE_Ti_ts = jacEE_Ti[1:3,:] # Task space jacobian
+        # print jacEE_Ti_ts
+        EE_vel_Ti_ts = mtimes(jacEE_Ti_ts,qdot_opt[i,:]) # Task space velocity vector
+        # print EE_vel_Ti_ts
+        EE_vel_T_ts[i,:] = EE_vel_Ti_ts.full().flatten()
+    # print EE_vel_T_ts
+    zero_vec = np.zeros([N_stage[0]+1,1])
+    plt.figure()
+    plt.quiver(range(N_stage[0]+1),zero_vec,EE_vel_T_ts[:,0],EE_vel_T_ts[:,1])
     plt.show(block=False)
 
 
