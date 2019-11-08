@@ -5,7 +5,7 @@
     <arg name="debug" default="false" />
     <arg name="gui" default="true" />
     <arg name="pause" default="true" />
-    <arg name="world" default="$(find tameshiwari)/rp_robot_description/world/empty_world.world" />
+    <arg name="world" default="$(find tameshiwari)/robots/rr_robot_description/world/empty_world.world" />
 
     <!-- include gazebo_ros launcher -->
     <include file="$(find gazebo_ros)/launch/empty_world.launch" >

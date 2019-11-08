@@ -1,11 +1,11 @@
 <launch>
-    <param name="robot_description" textfile="$(find tameshiwari)/rr_robot_description/urdf/rr_robot.urdf" />
+    <param name="robot_description" textfile="$(find tameshiwari)/robots/rr_robot_description/urdf/rr_robot.urdf" />
 
     <node name="robot_state_publisher" pkg="robot_state_publisher" type="state_publisher" >
         <remap from="joint_states" to="pose_state" />
     </node>
 
-    <node name="rviz" pkg="rviz" type="rviz" args=" -d $(find tameshiwari)/rr_robot_description/launch/config.rviz" />
+    <node name="rviz" pkg="rviz" type="rviz" args=" -d $(find tameshiwari)/robots/rr_robot_description/launch/config.rviz" />
 
     <!-- Launch the start up python script so it goes to initial position -->
     <node pkg="tameshiwari" type="init_state.py" name="init_state" />

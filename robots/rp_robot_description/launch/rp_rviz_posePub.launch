@@ -1,5 +1,5 @@
 <launch>
-    <param name="robot_description" textfile="$(find tameshiwari)/rp_robot_description/urdf/rp_robot.urdf" />
+    <param name="robot_description" textfile="$(find tameshiwari)/robots/rp_robot_description/urdf/rp_robot.urdf" />
 
     <!-- <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher">
         <param name="use_gui" value="TRUE" />
@@ -9,5 +9,5 @@
         <remap from="joint_states" to="pose_state" />
     </node>
 
-    <node name="rviz" pkg="rviz" type="rviz" args=" -d $(find tameshiwari)/rp_robot_description/launch/config.rviz" />
+    <node name="rviz" pkg="rviz" type="rviz" args=" -d $(find tameshiwari)/robots/rp_robot_description/launch/config.rviz" />
 </launch>

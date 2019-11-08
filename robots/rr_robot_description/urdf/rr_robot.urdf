@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<robot name="rp_robot">
+<robot name="rr_robot">
     
     <!-- TO CHECK INERTIA PROPERTIES RUN roslaunch robot_inertia_publisher robot_inertia_publisher.launch --> 
 
@@ -18,74 +18,34 @@
 
     <link name="L00">
         <visual>
-            <origin xyz="0.0 0.0 2.0" rpy="0.0 0.0 0.0"/>
+            <origin xyz="0.0 0.0 1.2" rpy="0.0 0.0 0.0"/>
             <geometry>
-                <mesh filename="package://tameshiwari/rp_robot_description/meshes/Link_00.stl" scale="1 1 1"/>
+                <mesh filename="package://tameshiwari/robots/rr_robot_description/meshes/RR_L00.stl" scale="1 1 1"/>
             </geometry>
             <material name="grey"/>
         </visual>
         <collision>
-            <origin xyz="0.0 0.0 2.0" rpy="0.0 0.0 0.0"/>
+            <origin xyz="0.0 0.0 1.2" rpy="0.0 0.0 0.0"/>
             <geometry>
-                <mesh filename="package://tameshiwari/rp_robot_description/meshes/Link_00.stl" scale="1 1 1"/>
+                <mesh filename="package://tameshiwari/robots/rr_robot_description/meshes/RR_L00.stl" scale="1 1 1"/>
             </geometry>
         </collision>
         <inertial>
-            <origin xyz="-0.251674 0.0 1.121284" rpy="0.0 0.0 0.0"/>
-            <mass value="456.291"/>
-            <inertia ixx="1.976e+2" ixy="2.277e-15" ixz="-1.333e0" iyy="1.894e+2" iyz="1.030e-15" izz="1.041e+1"/>
+            <origin xyz="-0.250003 0.0 0.71829"/>
+            <mass value="294.264"/>
+            <inertia ixx="5.488e+1" ixy="1.505e-15" ixz="-7.083e-1" iyy="4.970e+1" iyz="-7.715e-16" izz="6.708e0"/>
         </inertial>
     </link>
 
-    <joint name="J00" type="revolute">
-        <origin xyz="0.0 0.0 2.0" rpy="0.0 1.5707 0.0"/>
+    <joint name="J01" type="revolute">
+        <origin xyz="0.0 0.0 1.2" rpy="0.0 1.5707 0.0"/>
         <parent link="L00"/>
         <child link="L01"/>
         <axis xyz="0.0 0.0 1.0"/>
-        <limit effort="10000" velocity="0.5" lower="-1.3090" upper="4.4506"/> 
+        <limit effort="10000" velocity="0.5" lower="-1.6580627893946132" upper="3.4033920413889427"/> 
         <!-- enforcing joint limits from [-5*pi/12,17*pi/12], resulting in a deadzone of 30 degrees -->
     </joint>
     
-    <transmission name="trans_J00">
-        <type>transmission_interface/SimpleTransmission</type>
-        <joint name="J00">
-            <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
-        </joint>
-        <actuator name="motor_J00">
-             <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
-             <mechanicalReduction>1</mechanicalReduction>
-        </actuator>
-    </transmission>
-
-    <link name="L01">
-        <visual>
-            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
-            <geometry>
-                <mesh filename="package://tameshiwari/rp_robot_description/meshes/Link_01.stl" scale="1 1 1"/>
-            </geometry>
-            <material name="blue" />
-        </visual>
-        <collision>
-            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
-            <geometry>
-                <mesh filename="package://tameshiwari/rp_robot_description/meshes/Link_01.stl" scale="1 1 1"/>
-            </geometry>
-        </collision>
-        <inertial>
-            <origin xyz="0.516573 0.0 0.0" rpy="0.0 0.0 0.0"/>
-            <mass value="54.677"/>
-            <inertia ixx="5.494e-1" ixy="-3.832e-4" ixz="0.0" iyy="5.022e0" iyz="0.0" izz="5.035e0"/>
-        </inertial>
-    </link>
-
-    <joint name="J01" type="prismatic">
-        <origin xyz="0.57 0.0 0.0" rpy="0.0 1.5707 0.0"/>
-        <parent link="L01"/>
-        <child link="L02"/>
-        <axis xyz="0.0 0.0 1.0"/>
-        <limit lower="-0.37" upper="0.37" effort="1000.0" velocity="0.5"/>
-    </joint>
-
     <transmission name="trans_J01">
         <type>transmission_interface/SimpleTransmission</type>
         <joint name="J01">
@@ -97,51 +57,92 @@
         </actuator>
     </transmission>
 
+    <link name="L01">
+        <visual>
+            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <geometry>
+                <mesh filename="package://tameshiwari/robots/rr_robot_description/meshes/RR_L01.stl" scale="1 1 1"/>
+            </geometry>
+            <material name="blue" />
+        </visual>
+        <collision>
+            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <geometry>
+                <mesh filename="package://tameshiwari/robots/rr_robot_description/meshes/RR_L01.stl" scale="1 1 1"/>
+            </geometry>
+        </collision>
+        <inertial>
+            <origin xyz="0.137493 0.016049 0.072961"/>
+            <mass value="4.000"/>
+            <inertia ixx="1.874e-2" ixy="-8.635e-3" ixz="3.029e-3" iyy="6.591e-2" iyz="1.799e-3" izz="7.232e-2"/>
+        </inertial>
+    </link>
+
+    <joint name="J02" type="revolute">
+        <origin xyz="0.27276731 0.1042208 0.08000" rpy="0.0 0.0 0.0"/>
+        <parent link="L01"/>
+        <child link="L02"/>
+        <axis xyz="0.0 0.0 1.0"/>
+        <limit lower="-0.3490658503988659" upper="2.530727415391778" effort="1000.0" velocity="0.5"/>
+    </joint>
+
+    <transmission name="trans_J02">
+        <type>transmission_interface/SimpleTransmission</type>
+        <joint name="J02">
+            <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+        </joint>
+        <actuator name="motor_J02">
+             <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+             <mechanicalReduction>1</mechanicalReduction>
+        </actuator>
+    </transmission>
+
     <link name="L02">
         <visual>
             <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
             <geometry>
-                <mesh filename="package://tameshiwari/rp_robot_description/meshes/Link_02.stl" scale="1 1 1"/>
+                <mesh filename="package://tameshiwari/robots/rr_robot_description/meshes/RR_L02.stl" scale="1 1 1"/>
             </geometry>
             <material name="red" />
         </visual>
         <collision>
             <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
             <geometry>
-                <mesh filename="package://tameshiwari/rp_robot_description/meshes/Link_02.stl" scale="1 1 1"/>
+                <mesh filename="package://tameshiwari/robots/rr_robot_description/meshes/RR_L02.stl" scale="1 1 1"/>
             </geometry>
         </collision>
         <inertial>
-            <origin xyz="0.0 0.0 0.352179" rpy="0.0 0.0 0.0"/>
-            <mass value="17.606"/>
-            <inertia ixx="1.349" ixy="0.0" ixz="0.0" iyy="1.349" iyz="0.0" izz="2.816e-2"/>
+            <origin xyz="0.216738 0.0 0.007196"/>
+            <mass value="4.000"/>
+            <inertia ixx="8.907e-3" ixy="1.149e-9" ixz="5.612e-3" iyy="7.55e-2" iyz="-9.590e-9" izz="7.114e-2"/>
         </inertial>
+        
     </link>
 
-    <joint name="J02" type="fixed">
-        <origin xyz="0.0 0.0 0.875" rpy="0.0 0.0 0.0"/>
+    <joint name="J03" type="fixed">
+        <origin xyz="0.505184 0.0 0.0" rpy="0.0 0.0 0.0"/>
         <parent link="L02"/>
         <child link="EE"/>
     </joint>
 
     <link name="EE">
         <visual>
-            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <origin xyz="-0.070184 0.0 0.0" rpy="0.0 0.0 0.0"/>
             <geometry>
-                <sphere radius="0.1"/>
+                <mesh filename="package://tameshiwari/robots/rr_robot_description/meshes/RR_EE.stl" scale="1 1 1"/>
             </geometry>
             <material name="black" />
         </visual>
         <collision>
-            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+            <origin xyz="-0.070184 0.0 0.0" rpy="0.0 0.0 0.0"/>
             <geometry>
-                <sphere radius="0.1"/>
+                <mesh filename="package://tameshiwari/robots/rr_robot_description/meshes/RR_EE.stl" scale="1 1 1"/>
             </geometry>
         </collision>
         <inertial>
-            <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
-            <mass value="1000"/>
-            <inertia ixx="4.0" ixy="0.0" ixz="0.0" iyy="4.0" iyz="0.0" izz="4.0"/>
+            <origin xyz="0.0 0.0 0.0"/>
+            <mass value="2.000"/>
+            <inertia ixx="0.3466e-2" ixy="0.0" ixz="0.0" iyy="0.3878e-2" iyz="0.0" izz="0.3878e-2"/>
         </inertial>
     </link>
 
