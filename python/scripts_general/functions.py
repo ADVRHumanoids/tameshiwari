@@ -106,7 +106,7 @@ class RobotPose:
                 for j in range(self.nj):
                     tmp = "J%02d" %(j+1)
                     self.name.append(tmp)
-        
+                
     def interpolate(self,drate,method=''):
         # This function interpolates the known trajectory and adds more intermediate
         # points to it to have smooth motion in rviz

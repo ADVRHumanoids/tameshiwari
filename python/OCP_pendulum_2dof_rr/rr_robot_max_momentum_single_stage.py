@@ -55,7 +55,7 @@ import tameshiwari.pynocchio_casadi as pyn
 # =============================================================================
 #   INITIALIZATION
 # =============================================================================
-var_pl      = True
+var_pl      = False
 var_ani     = True
 var_rec     = False
 var_inp     = False

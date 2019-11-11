@@ -58,7 +58,7 @@ import tameshiwari.pynocchio_casadi as pyn
 # =============================================================================
 #   INITIALIZATION
 # =============================================================================
-var_pl      = True
+var_pl      = False
 var_ani     = True
 var_rec     = False
 var_inp     = False
@@ -166,7 +166,8 @@ ubh = (Tf_ub/N_stage).flatten().tolist()
 nj = 2
 nq = 3 # number of different q's --> q(t), qdot(t), qddot(t)
 # q_0 = np.zeros(nj).tolist()
-q_0 = [30, 130]
+# q_0 = [30, 130]
+q_0 = [0,0]
 q_0 = np.deg2rad(q_0).tolist()
 # q_0 = np.array([np.pi*3/4,np.pi/2]).reshape(-1,2).flatten().tolist()
 q_0_vec = np.matlib.repmat(np.array(q_0),N_tot+1,1)
@@ -210,7 +211,7 @@ ubq = np.deg2rad(ubq_deg).tolist()
 ubqdot = [3.9, 6.1]
 lbqdot = [x*-1 for x in ubqdot]
 #   TORQUE BOUNDS
-W_tau = [0.4, 0.6]
+W_tau = [0.2, 0.6]
 tau_lim_orange = 147.
 tau_lim_yellow = 147.
 tau_lim = np.array([tau_lim_orange, tau_lim_yellow],ndmin=2).transpose()

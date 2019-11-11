@@ -57,7 +57,7 @@ import rospy
 #==============================================================================
 
 import functions as fn
-import rec_joint_state as js
+import joint_state as js
 import tameshiwari.pynocchio_casadi as pyn
 
 # =============================================================================
@@ -65,8 +65,8 @@ import tameshiwari.pynocchio_casadi as pyn
 # =============================================================================
 
 #   GENERAL PARAMETERS
-var_pl      = 0
-var_ani     = 1
+var_pl      = 1
+var_ani     = 0
 var_rec     = 0
 var_save    = 0
 name = 'Res_DMS_minimize_torque'
@@ -369,7 +369,7 @@ if var_ani !=0:
         # subproc.kill()
         # os.system("q")
     else:
-        js.posePublisher(pose,record=True)  
+        js.posePublisher(pose)  
     
 
 #==============================================================================

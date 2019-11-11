@@ -60,12 +60,18 @@ import casadi_kin_dyn.pycasadi_kin_dyn as cas_kin_dyn
 # =============================================================================
 #   INITIALIZATION
 # =============================================================================
-var_pl      = True
+var_pl      = False
 var_ani     = True
 var_rec     = False
 var_inp     = False
 var_save    = False
 var_h_opt   = True
+working     = False
+EE_vel_z_constr = True
+EE_pos_constr = True
+dir_minus = True
+
+
 
 # if var_ani:
 #     # TODO: create functionality to choose homing position, default q = 0
@@ -168,8 +174,8 @@ ubh = (Tf_ub/N_stage).flatten().tolist()
 nj = 2
 nq = 3 # number of different q's --> q(t), qdot(t), qddot(t)
 # q_0 = np.zeros(nj).tolist()
-# q_0 = [30, 130]
-q_0 = [0, 0]
+q_0 = [30, 130]
+# q_0 = [0, 0]
 q_0 = np.deg2rad(q_0).tolist()
 print q_0
 # q_0 = np.array([np.pi*3/4,np.pi/2]).reshape(-1,2).flatten().tolist()
@@ -197,9 +203,12 @@ offsetX = 0.0800682
 offsetY = 0
 offsetZ = 1.2
 desX = 0
-desY = 0.797
+# desY = 0.797
+desY = 0.780
+# desY = 0.5
 # desY = 0.65
 desZ = 0
+# desZ = -0.4
 # desY = 0.5
 # desZ = 0.4
 EE_pos_N = [desX+offsetX, desY+offsetY, desZ+offsetZ]
@@ -218,7 +227,7 @@ ubqdot = [3.9, 6.1]
 # ubqdot = [10, 10]
 lbqdot = [x*-1 for x in ubqdot]
 #   TORQUE BOUNDS
-W_tau = [0.4, 0.9]
+W_tau = [0.2, 0.6]
 tau_lim_orange = 147.
 tau_lim_yellow = 147.
 tau_lim = np.array([tau_lim_orange, tau_lim_yellow],ndmin=2).transpose()
@@ -396,7 +405,6 @@ for Mi in range(M):
 
         #   TERMINAL CONSTRAINTS:
         #   TERMINAL POSITION CONSTRAINT
-        EE_pos_constr = True
         if EE_pos_constr:
             EE_pos_k = forKin(q=qk)['ee_pos']
             EE_diff_yk = EE_pos_k[1] - EE_pos_N[1]
@@ -414,16 +422,15 @@ for Mi in range(M):
         EE_vel_zN = EE_vel_N[2]
         EE_vel_N_ts = mtimes(jacEE_N_ts,qdotk) # Task space velocity vector
         
-        EE_vel_z_constr = True
         if EE_vel_z_constr:
-            g += [EE_vel_zN]
-            lbg += [-inf]
-            ubg += [0]
-
-        #   MAXIMUM ANGULAR VELOCITY
-        # g += [qdotk]
-        # lbg += lbqdot
-        # ubg += lbqdot
+            if dir_minus:
+                g += [EE_vel_zN]
+                lbg += [-inf]
+                ubg += [0]
+            else:
+                g += [EE_vel_zN]
+                lbg += [0]
+                ubg += [inf]
 
         #   TERMINAL COST 
         #   IS GOING TO BE -1*EE_VEL_K
@@ -432,25 +439,30 @@ for Mi in range(M):
 
         #   TERMINAL COST --> MOMENTUM MAXIMIZATION
         B_N = B_js(q=qk)['B']
+        if working:
+            #   working version
+            Lambda_ee_N = mtimes(mtimes(pinv(jacEE_N).T,B_N),pinv(jacEE_N)) # --> seems to work but is not correct to use
+            h_ee_N = mtimes(Lambda_ee_N,EE_vel_N)
+            h_ee_zN = h_ee_N[2]
+            h_ee_yN = h_ee_N[1]
+            E = -dot(h_ee_zN,h_ee_zN)
+            J += E
+        else:
+            #  experimental version --> proper way of calculating Lambda
+            Lambda_ee_N = inv(mtimes(jacEE_N_ts,mtimes(inv(B_N),jacEE_N_ts.T)))
+            h_ee_N_ts = mtimes(Lambda_ee_N,EE_vel_N_ts)
+            h_ee_zN_ts = h_ee_N_ts[1]
+            h_ee_yN_ts = h_ee_N_ts[0]
+            E = -dot(h_ee_zN_ts,h_ee_zN_ts)
+            J += E
+
         # Lambda_ee_N = inv(mtimes(mtimes(jacEE_N,inv(B_N)),jacEE_N.T))
         # Lambda_ee_N = inv(mtimes(jacEE_N,mtimes(inv(B_N),jacEE_N.T)))
-        Lambda_ee_N = mtimes(mtimes(pinv(jacEE_N).T,B_N),pinv(jacEE_N)) # --> seems to work but is not correct to use
-        # Lambda_ee_N = inv(mtimes(jacEE_N_ts,mtimes(inv(B_N),jacEE_N_ts.T)))
-        h_ee_N = mtimes(Lambda_ee_N,EE_vel_N)
-        # h_ee_N_ts = mtimes(Lambda_ee_N,EE_vel_N_ts)
-        h_ee_zN = h_ee_N[2]
-        # h_ee_zN_ts = h_ee_N_ts[1]
-        # h_ee_yN_ts = h_ee_N_ts[0]
-        h_ee_yN = h_ee_N[1]
         # h_ee_linN = h_ee_N[0:3]
-        E = -dot(h_ee_zN,h_ee_zN)
         # E = -dot(h_ee_N,h_ee_N)
         # E = -dot(h_ee_linN,h_ee_linN)
         # E = -dot(h_ee_yN,h_ee_yN) + dot(h_ee_zN,h_ee_zN)
-        # E = -dot(h_ee_yN_ts,h_ee_yN_ts)
-        # E = -dot(h_ee_zN_ts,h_ee_zN_ts)
         # E = -mtimes(h_ee_linN.T,h_ee_linN)
-        J += E
 
     else:
         h = MX.sym('h_stage_2')
@@ -646,27 +658,48 @@ print "The optimized time step size: h_opt = %s" %h_opt.flatten().tolist()
 print "The optimized final time: Tf_opt = %s" %Tf_opt.flatten().tolist()
 
 impact_ind = N_stage[0]
-jacEE_opt = jacEE(q=q_opt[impact_ind,:])['J']
-print jacEE_opt
-EE_vel_opt = mtimes(jacEE_opt,qdot_opt[impact_ind,:])
 B_opt = B_js(q=q_opt[impact_ind,:])['B']
-Lambda_ee_opt = mtimes(mtimes(pinv(jacEE_opt).T,B_opt),pinv(jacEE_opt))
-h_ee_opt = mtimes(Lambda_ee_opt,EE_vel_opt)
-h_ee_zopt = h_ee_opt[2]
-h_ee_linopt = h_ee_opt[0:3]
-h_ee_resultant = np.linalg.norm(h_ee_linopt)
-# EE_vel_opt = np.matmul(jacEE_opt,np.transpose(qdot_opt[-1,:]))
-print "The jacobian at the impact: \n %s" %jacEE_opt
-print "The optimized final EE linear velocity: %s [m/s]" %EE_vel_opt[0:3]
-print "The optimized final EE rotational velocity: %s [rad/s]" %EE_vel_opt[3:]
-EE_vel_zopt = EE_vel_opt[2]
-print "The optimized final EE velocity along the z-axis: %s [m/s]" %EE_vel_zopt
-print "The optimized final joint velocties: %s [rad/s]" %qdot_opt[impact_ind,:]
-EE_pos = forKin(q=q_opt[impact_ind,:])['ee_pos']
-print "The optimized final momentum h_e: %s [kg m/s]" %h_ee_linopt
-print "The optimized final momentum ||h_e||_2: %s [kg m/s]" %h_ee_resultant
-print "The optimized final EE cartesian position: %s [m]" %(EE_pos - J01_pos)
-print "This position is w.r.t. origin of joint 1"
+jacEE_opt = jacEE(q=q_opt[impact_ind,:])['J']
+
+if working:   
+    #   Working
+    EE_vel_opt = mtimes(jacEE_opt,qdot_opt[impact_ind,:])
+    Lambda_ee_opt = mtimes(mtimes(pinv(jacEE_opt).T,B_opt),pinv(jacEE_opt))
+    h_ee_opt = mtimes(Lambda_ee_opt,EE_vel_opt)
+    h_ee_zopt = h_ee_opt[2]
+    h_ee_linopt = h_ee_opt[0:3]
+    h_ee_resultant = np.linalg.norm(h_ee_linopt)
+
+    print "The jacobian at the impact: \n %s" %jacEE_opt
+    print "The optimized final EE linear velocity: %s [m/s]" %EE_vel_opt[0:3]
+    print "The optimized final EE rotational velocity: %s [rad/s]" %EE_vel_opt[3:]
+    EE_vel_zopt = EE_vel_opt[2]
+    print "The optimized final EE velocity along the z-axis: %s [m/s]" %EE_vel_zopt
+    print "The optimized final joint velocties: %s [rad/s]" %qdot_opt[impact_ind,:]
+    print "The optimized final momentum h_e: %s [kg m/s]" %h_ee_linopt
+    print "The optimized final momentum ||h_e||_2: %s [kg m/s]" %h_ee_resultant
+    EE_pos = forKin(q=q_opt[impact_ind,:])['ee_pos']
+    print "The optimized final EE cartesian position: %s [m]" %(EE_pos - J01_pos)
+    print "This position is w.r.t. origin of joint 1"
+else:
+    #   Experiment
+    jacEE_opt = jacEE_opt[1:3,:]
+    Lambda_ee_opt = inv(mtimes(mtimes(jacEE_opt,inv(B_opt)),jacEE_opt.T))
+    EE_vel_opt = mtimes(jacEE_opt,qdot_opt[impact_ind,:])
+    h_ee_opt = mtimes(Lambda_ee_opt,EE_vel_opt)
+    h_ee_linopt = h_ee_opt
+    h_ee_zopt = h_ee_opt[1]
+    h_ee_resultant = np.linalg.norm(h_ee_linopt)
+    print "The jacobian at the impact: \n %s" %jacEE_opt
+    print "The optimized final EE linear velocity: %s [m/s]" %EE_vel_opt
+    EE_vel_zopt = EE_vel_opt[1]
+    print "The optimized final EE velocity along the z-axis: %s [m/s]" %EE_vel_zopt
+    print "The optimized final joint velocties: %s [rad/s]" %qdot_opt[impact_ind,:]
+    print "The optimized final momentum h_e: %s [kg m/s]" %h_ee_linopt
+    print "The optimized final momentum ||h_e||_2: %s [kg m/s]" %h_ee_resultant
+    EE_pos = forKin(q=q_opt[impact_ind,:])['ee_pos']
+    print "The optimized final EE cartesian position: %s [m]" %(EE_pos - J01_pos)
+    print "This position is w.r.t. origin of joint 1"
 
 #==============================================================================
 #   PLOTTING THE RESULTS
