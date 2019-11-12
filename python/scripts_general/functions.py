@@ -209,6 +209,8 @@ class RobotPose:
         fileName = "%s/%s%s_%s.mat" % (dirName,suffix,fileName,str_time)
         sio.savemat(fileName,saveDict)
     
+    def 
+
     def savePlot(self,dirName='',fileName='',suffix='Plot_',ext='.tex'):
         if not dirName:
             dirName = os.path.split(os.path.abspath(os.path.realpath(sys.argv[0])))[0] + '/plots'

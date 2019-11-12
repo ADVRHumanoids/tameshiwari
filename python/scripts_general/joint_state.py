@@ -20,6 +20,11 @@ def posePublisher(pose):
     state_str = JointState()
     state_str.header = Header()
     iteration = 0
+    try:
+        nj = np.shape(pose.q)[1]
+        print "number of joints: %s" %nj
+    except:
+        print "error on q"
     
     while not rospy.is_shutdown() and iteration < pose.q.shape[0]:
         now = rospy.get_rostime()

@@ -65,8 +65,8 @@ import tameshiwari.pynocchio_casadi as pyn
 # =============================================================================
 
 #   GENERAL PARAMETERS
-var_pl      = 1
-var_ani     = 0
+var_pl      = 0
+var_ani     = 1
 var_rec     = 0
 var_save    = 0
 name = 'Res_DMS_minimize_torque'
@@ -113,6 +113,7 @@ ubqdot = [3.9, 6.1]
 lbqdot = [x*-1 for x in ubqdot]
 #   TORQUE BOUNDS
 ubtau = [147., 147.]
+# ubtau = [inf, inf]
 lbtau = [x*-1 for x in ubtau]
 #   ACCELERATION BOUNDS
 ubqddot = [inf, inf]
@@ -197,7 +198,8 @@ for k in range(N):
 
     #   INTEGRAL COST CONTRIBUTION
     # L = dot(tauk,tauk) + dot(qk,qk)
-    L = h*dot(tauk,tauk)
+    L = dot(tauk,tauk)
+    # L = 0
     # L = dot(qk,qk)
     J += L
 
