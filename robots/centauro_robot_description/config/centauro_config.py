@@ -2,50 +2,29 @@ from xml.dom import minidom
 import xml.etree.ElementTree as ET
 import numpy as np
 import re
+import os, sys
+from string import digits
+import traceback
 
-filename_srdf = 'centauro_srdf.xacro'
-filename_limits = 'joint_limits.xacro'
-
-tree = ET.parse(filename_limits)
-root = tree.getroot()
-
-enum = 1
-joint_str = []
-q_lb = []
-q_ub = []
-
-arm_1 = True
-arm_ind = 1 if arm_1 else 2
-
-for child in root:
-    if 'j_arm_' in child.attrib['name'] and 'lower' in child.attrib['name']:
-        joint_str += ['j_arm' + str(arm_ind) + '_' + str(enum)]
-        string = child.attrib['value']
-        row = re.findall("[-+]?\d+\.\d+", string)
-        q_lb += [row[arm_ind-1]]
-        enum += 1
-    if 'j_arm_' in child.attrib['name'] and 'upper' in child.attrib['name']:
-        string = child.attrib['value']
-        row = re.findall("[-+]?\d+\.\d+", string)
-        q_ub += [row[arm_ind-1]]
-        enum += 1
-
-# print joint_str
-# print q_lb
-# print q_ub
+def getPath():
+    return os.path.split(traceback.extract_stack()[-1][0])[0]
+filename_srdf = getPath() + '/centauro_srdf.xacro'
+filename_limits = getPath() + '/joint_limits.xacro'
 
 class HomePose():
-    def __init__(self,pose=None):
+    def __init__(self,pose=None,name=None):
+        self.name = name or JointNames().getName()
         tree = ET.parse(filename_srdf)
         root = tree.getroot()
         self.pose = pose or 'home'
-        self.name = []
+        # self.name = []
         self.value = []
         for child in root:
             if child.tag == 'group_state' and child.attrib['name'] == 'home':
                 for subchild in child:
-                    self.name += [subchild.attrib['name']]
-                    self.value += [float(subchild.attrib['value'])]
+                    if subchild.attrib['name'] in self.name:
+                        # self.name += [subchild.attrib['name']]
+                        self.value += [float(subchild.attrib['value'])]
     
     def getName(self):
         return self.name
@@ -96,20 +75,60 @@ class JointBounds():
         tree = ET.parse(filename_limits)
         root = tree.getroot()
 
+        joint_str = []
+        self.lower = []
+        self.upper = []
+        self.velocity = []
+        self.torque = []
+
+        for joint in self.name:
+            try:
+                i = [x.isdigit() for x in joint].index(True)
+                num = int(joint[i])
+                string = joint[:i]+joint[i+1:]
+                joint_str += [string]
+            except ValueError:
+                string = joint
+                joint_str += [string]
+            for child in root:
+                name = child.attrib['name']
+                if string in name and 'lower' in name:
+                    row = re.findall("[-+]?\d+\.\d+", child.attrib['value'])
+                    self.lower += [float(row[num-1])]
+                if string in name and 'upper' in name:
+                    row = re.findall("[-+]?\d+\.\d+", child.attrib['value'])
+                    self.upper += [float(row[num-1])]
 
     def printName(self):
         print self.name
 
+    def getName(self):
+        return self.name
+
+    def getLowerBound(self):
+        return self.lower
+    
+    def getUpperBound(self):
+        return self.upper
+
 if __name__ == "__main__":
+    # DEBUGGING
     # home = HomePose()
     # home.printName()
     # home.printPose()
     # home.printValue()
 
     left_arm = JointNames('arm1')
-    # left_arm_bounds = JointBounds
+    # left_arm.printName()
+    home = HomePose(name=left_arm.getName())
+    home.printName()
+    # home.printPose()
+    home.printValue()
+    # left_arm_bounds = JointBounds(left_arm.getName())
+    # print left_arm_bounds.getLowerBound()
+    # print left_arm_bounds.getUpperBound()
+    # left_arm_bounds = JointBounds()
     # names = name_list.getName()
-    # print names
 
     # JointNames().printName()
 

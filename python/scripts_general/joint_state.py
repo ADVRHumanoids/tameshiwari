@@ -22,7 +22,7 @@ def posePublisher(pose):
     iteration = 0
     try:
         nj = np.shape(pose.q)[1]
-        print "number of joints: %s" %nj
+        # print "Number of joints: %s" %nj
     except:
         print "error on q"
     

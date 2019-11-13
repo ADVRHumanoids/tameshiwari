@@ -40,8 +40,8 @@
         <joint name="ankle_yaw_4" />
         <joint name="ankle_pitch_4"/>
         <joint name="j_wheel_4" />
-        <joint name="torso_yaw"/>
-        <joint name="neck_pitch" />
+        <!-- <joint name="torso_yaw"/>
+        <joint name="neck_pitch" /> -->
    </group>
 
    <group name="velodyne">
@@ -173,9 +173,9 @@
         <joint name="ankle_pitch_4" value="0.0"/>
         <joint name="j_wheel_4" value="0.0" />
 
-        <joint name="torso_yaw" value="0.0"/>
+        <!-- <joint name="torso_yaw" value="0.0"/>
 
-        <joint name="neck_pitch" value="0.45"/>
+        <joint name="neck_pitch" value="0.45"/> -->
     </group_state>
 
 

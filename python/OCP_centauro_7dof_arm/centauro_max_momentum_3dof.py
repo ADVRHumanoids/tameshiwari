@@ -25,57 +25,41 @@ from datetime import datetime
 
 import functions as fn
 import centauro_functions as cfn
+import centauro_config as config
 import joint_state_centauro as jsc
 import joint_state as js
 import init_state
 import casadi_kin_dyn.pycasadi_kin_dyn as cas_kin_dyn
+import centauro_inverse_kinematics as invKyn
 
-arm_left = True
-arm_both = True
-if arm_left:
-    j_arm = ['j_arm1_1', 'j_arm1_2', 'j_arm1_3', 'j_arm1_4', 'j_arm1_5', 'j_arm1_6', 'j_arm1_7']
-    j_arm_lb = ['-3.312', '0.020', '-2.552', '-2.465', '-2.569', '-1.529', '-2.565']
-    j_arm_ub = ['1.615', '3.431', '2.566', '0.280', '2.562', '1.509', '2.569']
+joint_str = config.JointNames('arm1').getName()
+joint_num = [1,2,4]
+joint_str = [joint_str[j] for j in [i for i,x in enumerate(joint_str) if int(x[-1]) in joint_num]]
+joint_lim = config.JointBounds(joint_str)
+q_lb = joint_lim.getLowerBound()
+q_ub = joint_lim.getUpperBound()
+
+load_file = False
+if load_file:
+    dirName = os.path.split(os.path.abspath(os.path.realpath(sys.argv[0])))[0] +  '/casadi_urdf'
+    fileName = "%s/centauro_2dof_urdf.txt" % dirName
+    with open(fileName, 'r') as f:
+        urdf = f.read()
+        print urdf
 else:
-    j_arm = ['j_arm2_1', 'j_arm2_2', 'j_arm2_3', 'j_arm2_4', 'j_arm2_5', 'j_arm2_6', 'j_arm2_7']
-    j_arm_lb = ['-3.3458', '-3.4258', '-2.5614', '-2.4794', '-2.5394', '-1.5154', '-2.5554']
-    j_arm_ub = ['1.6012', '-0.0138', '2.5606', '0.2886', '2.5546', '1.5156', '2.5686']
-if arm_both:
-    j_arm = ['j_arm1_1', 'j_arm1_2', 'j_arm1_3', 'j_arm1_4', 'j_arm1_5', 'j_arm1_6', 'j_arm1_7']
-    j_arm_lb = ['-3.312', '0.020', '-2.552', '-2.465', '-2.569', '-1.529', '-2.565']
-    j_arm_ub = ['1.615', '3.431', '2.566', '0.280', '2.562', '1.509', '2.569']
-    j_arm += ['j_arm2_1', 'j_arm2_2', 'j_arm2_3', 'j_arm2_4', 'j_arm2_5', 'j_arm2_6', 'j_arm2_7']
-    j_arm_lb += ['-3.3458', '-3.4258', '-2.5614', '-2.4794', '-2.5394', '-1.5154', '-2.5554']
-    j_arm_ub += ['1.6012', '-0.0138', '2.5606', '0.2886', '2.5546', '1.5156', '2.5686']
+    urdf = rospy.get_param('robot_description')
 
-print j_arm
-joint_num = [1]
-q_name = [j_arm[j] for j in [i for i,x in enumerate(j_arm) if int(x[-1]) in joint_num]]
-print q_name
-q_lb = [j_arm_lb[j] for j in [i for i,x in enumerate(j_arm) if x in q_name]]
-q_lb = [float(i) for i in q_lb]
-print q_lb
-q_ub = [j_arm_ub[j] for j in [i for i,x in enumerate(j_arm) if x in q_name]]
-q_ub = [float(i) for i in q_ub]
-print q_ub
+kindyn = cas_kin_dyn.CasadiKinDyn(urdf)
+end_effector = 'arm1_8'
+invDyn = Function.deserialize(kindyn.rnea())
+forKin = Function.deserialize(kindyn.fk(end_effector))
+jacEE = Function.deserialize(kindyn.jacobian(end_effector))
+inertiaJS = Function.deserialize(kindyn.crba())
 
-N = 500
-q = np.empty((N,0))
-# if arm_both:
-#     joint = [1,3,4,6]
-# else:
-#     joint = [1]
-reverse = False
-for i, name in enumerate(q_name):
-    # if i+1 in joint:
-    #     q_i = np.matlib.linspace(q_lb[i],q_ub[i],N).reshape(-1,1)
-    #     if reverse:
-    #         q_i = np.flipud(q_i)
-    # else:
-    #     q_i = np.zeros((N,1))
-    q_i = np.matlib.linspace(q_lb[i],q_ub[i],N).reshape(-1,1)
-    q = np.append(q, q_i, axis=1)
+# INITIAL JOINT STATE
+q_0 = config.HomePose(name=joint_str).getValue()
 
-# print q
-pose = fn.RobotPose(name=q_name,q=q,rate=30)
-js.posePublisher(pose)
+p_end = [1.0, 0.0, 1.35]
+q_end = invKyn.invKin(fk=forKin,j_str=joint_str,q_init=q_0,animate=False,T=2)
+
+print type(q_lb)

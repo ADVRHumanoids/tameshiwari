@@ -108,6 +108,8 @@ class RobotPose:
                     self.name.append(tmp)
                 
     def interpolate(self,drate,method=''):
+        # qdot needs to be provided
+
         # This function interpolates the known trajectory and adds more intermediate
         # points to it to have smooth motion in rviz
         # Techniques used are from Siciliano book chapter 4 Trajectory Planning
@@ -209,8 +211,6 @@ class RobotPose:
         fileName = "%s/%s%s_%s.mat" % (dirName,suffix,fileName,str_time)
         sio.savemat(fileName,saveDict)
     
-    def 
-
     def savePlot(self,dirName='',fileName='',suffix='Plot_',ext='.tex'):
         if not dirName:
             dirName = os.path.split(os.path.abspath(os.path.realpath(sys.argv[0])))[0] + '/plots'
