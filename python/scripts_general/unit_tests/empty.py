@@ -1,15 +1,21 @@
 # EMPTY THIS SCRIPT AT THE END OF USAGE
 
-import centauro_functions as cfn
+import numpy as np
+import random
+import centauro_config as config
 
-# path = cfn.realpath()
-# print path
-# abspath = cfn.abspath(path)
-# print abspath
+init_pose = 'home'
+centauro = config.HomePose(pose=init_pose)
+joints_all = centauro.getName()
+q_all = centauro.getValue()
+q_all = np.asarray(q_all)
+print type(q_all)
+current_str = ['j_arm1_1', 'hip_pitch_1', 'j_arm1_3', 'j_arm1_4', 'j_arm1_5', 'j_arm1_6']
+random.shuffle(current_str)
 
-
-from string import digits
-
-s = 'ddf12939dkdfjidi3119;94ddd'
-res = s.translate(None,digits)
-print res
+index = [i for i, x in enumerate(joints_all) if x in current_str]
+print index
+joints_remain = [i for j, i in enumerate(joints_all) if j not in index]
+print joints_remain
+q_remain = np.delete(q_all,index).tolist()
+print q_remain

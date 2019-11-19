@@ -12,6 +12,8 @@ import rospy
 from sensor_msgs.msg import JointState
 from std_msgs.msg import Header
 import numpy as np
+import scipy.io as sio
+import functions as fn
 
 def posePublisher(pose):
     pub = rospy.Publisher('pose_state', JointState, queue_size=10)
@@ -43,6 +45,19 @@ def posePublisher(pose):
 
 if __name__ == '__main__':
     try:
+        path = '/home/user/catkin_ws/results/'
+        filename = 'RobotPose_centauro_max_momentum_3dof_2019-11-15T11:27:39.mat'
+        
+        matfile = sio.loadmat(path+filename)
+        matfile['name'] = [str(x) for x in matfile['name']]
+        pose = fn.RobotPose(
+            name=matfile['name'],
+            q=matfile['q'],
+            qdot=matfile['qdot'],
+            tau=matfile['tau'],
+            rate=matfile['rate']
+        )
+        print type(pose.q)
         posePublisher(pose)
     except rospy.ROSInterruptException:
         pass

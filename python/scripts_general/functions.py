@@ -12,6 +12,7 @@
 from casadi import collocation_points
 from casadi import DM
 import numpy as np
+import numpy.matlib as ml
 import matplotlib.pyplot as plt
 import matplotlib2tikz
 import scipy.io as sio
@@ -205,7 +206,8 @@ class RobotPose:
             'q':self.q,
             'qdot':self.qdot,
             'qddot':self.qddot,
-            'tau':self.tau
+            'tau':self.tau,
+            'rate':self.rate
         }
         str_time = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
         fileName = "%s/%s%s_%s.mat" % (dirName,suffix,fileName,str_time)
@@ -224,7 +226,7 @@ class RobotPose:
         fileName = "%s/%s%s_%s%s" % (dirName,suffix,fileName,str_time,ext)
         matplotlib2tikz.save(fileName)
 
-    def plot_q(self,show=True,save=False,title=True,grid=True,legend_str='',block=True,lb=[],ub=[],limits=False,Tvec=[]):
+    def plot_q(self,show=True,save=False,title=True,grid=True,legend_str='',block=True,lb=[],ub=[],limits=False,Tvec=[],nj_plot=None):
         if len(Tvec) == 0:
             Tvec = self.T
         
@@ -237,6 +239,10 @@ class RobotPose:
                 for i in range(self.nj):
                     # ax.plot(self.T[[0,-1]],[ub[i],ub[i]], color=colors[i], linestyle='dashed')
                     # ax.plot(self.T[[0,-1]],[lb[i],lb[i]], color=colors[i], linestyle='dashed')
+                    ax.plot(Tvec[[0,-1]],[ub[i],ub[i]], color=colors[i], linestyle='dashed')
+                    ax.plot(Tvec[[0,-1]],[lb[i],lb[i]], color=colors[i], linestyle='dashed')
+            elif len(lb)==nj_plot:
+                for i in range(nj_plot):
                     ax.plot(Tvec[[0,-1]],[ub[i],ub[i]], color=colors[i], linestyle='dashed')
                     ax.plot(Tvec[[0,-1]],[lb[i],lb[i]], color=colors[i], linestyle='dashed')
 
@@ -256,10 +262,10 @@ class RobotPose:
         if save:
             self.savePlot(suffix='Plot_q_')
 
-    def plot_qdot(self,show=True,save=False,title=True,grid=True,legend_str='',block=True,lb=[],ub=[],limits=False,Tvec=[]):
+    def plot_qdot(self,show=True,save=False,title=True,grid=True,legend_str='',block=True,lb=[],ub=[],limits=False,Tvec=[],nj_plot=None):
         if len(Tvec) == 0:
             Tvec = self.T
-
+        
         fig, ax = plt.subplots()
         # ax.plot(self.T,self.qdot)
         ax.plot(Tvec,self.qdot)
@@ -269,6 +275,10 @@ class RobotPose:
                 for i in range(self.nj):
                     # ax.plot(self.T[[0,-1]],[ub[i],ub[i]], color=colors[i], linestyle='dashed')
                     # ax.plot(self.T[[0,-1]],[lb[i],lb[i]], color=colors[i], linestyle='dashed')
+                    ax.plot(Tvec[[0,-1]],[ub[i],ub[i]], color=colors[i], linestyle='dashed')
+                    ax.plot(Tvec[[0,-1]],[lb[i],lb[i]], color=colors[i], linestyle='dashed')
+            elif len(lb)==nj_plot:
+                for i in range(nj_plot):
                     ax.plot(Tvec[[0,-1]],[ub[i],ub[i]], color=colors[i], linestyle='dashed')
                     ax.plot(Tvec[[0,-1]],[lb[i],lb[i]], color=colors[i], linestyle='dashed')
 
@@ -288,7 +298,7 @@ class RobotPose:
         if save:
             self.savePlot(suffix='Plot_qdot_')
 
-    def plot_qddot(self,show=True,save=False,title=True,grid=True,legend_str='',block=True,lb=[],ub=[],limits=False,Tvec=[]):
+    def plot_qddot(self,show=True,save=False,title=True,grid=True,legend_str='',block=True,lb=[],ub=[],limits=False,Tvec=[],nj_plot=None):
         if len(Tvec) == 0:
             Tvec = self.T
 
@@ -296,13 +306,17 @@ class RobotPose:
         # ax.plot(self.T,self.qddot)
         ax.plot(Tvec,self.qddot)
 
-        # if limits:
-        #     if len(lb)==self.nj:
-        #         for i in range(self.nj):
-        #             # ax.plot(self.T[[0,-1]],[ub[i],ub[i]], color=colors[i], linestyle='dashed')
-        #             # ax.plot(self.T[[0,-1]],[lb[i],lb[i]], color=colors[i], linestyle='dashed')
-        #             ax.plot(Tvec[[0,-1]],[ub[i],ub[i]], color=colors[i], linestyle='dashed')
-        #             ax.plot(Tvec[[0,-1]],[lb[i],lb[i]], color=colors[i], linestyle='dashed')
+        if limits:
+            if len(lb)==self.nj:
+                for i in range(self.nj):
+                    # ax.plot(self.T[[0,-1]],[ub[i],ub[i]], color=colors[i], linestyle='dashed')
+                    # ax.plot(self.T[[0,-1]],[lb[i],lb[i]], color=colors[i], linestyle='dashed')
+                    ax.plot(Tvec[[0,-1]],[ub[i],ub[i]], color=colors[i], linestyle='dashed')
+                    ax.plot(Tvec[[0,-1]],[lb[i],lb[i]], color=colors[i], linestyle='dashed')
+            elif len(lb)==nj_plot:
+                for i in range(nj_plot):
+                    ax.plot(Tvec[[0,-1]],[ub[i],ub[i]], color=colors[i], linestyle='dashed')
+                    ax.plot(Tvec[[0,-1]],[lb[i],lb[i]], color=colors[i], linestyle='dashed')
 
         ax.set_xlabel("time [s]")
         ax.set_ylabel("$\\ddot{\\theta}$ [rad/s$^2$]")

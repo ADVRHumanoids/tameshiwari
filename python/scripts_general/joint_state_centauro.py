@@ -12,32 +12,53 @@ import rospy
 from sensor_msgs.msg import JointState
 from std_msgs.msg import Header
 import numpy as np
+import scipy.io as sio
+import functions as fn
+import centauro_config as config
 
-def posePublisher(pose):
+def posePublisher(pose,init_pose=None):
+    ####################################################
+    # This part is to add extra values to the print statements
+    if init_pose is None:
+        init_pose = 'home'
+    centauro = config.HomePose(pose=init_pose)
+    full_name = centauro.getName()
+    # print len(full_name)
+    nj_extra = len(full_name) - len(pose.name)
+    index = [i for i, x in enumerate(full_name) if x in pose.name]
+    name_extra = [i for j, i in enumerate(full_name) if j not in index]
+    q_extra = np.delete(centauro.getValue(),index)
+
+    #####################################################
+
     pub = rospy.Publisher('pose_state', JointState, queue_size=10)
     rospy.init_node('posePublisher', anonymous=True)
     rate = rospy.Rate(pose.rate) # default is 10 Hz
+    # print pose.rate
     state_str = JointState()
     state_str.header = Header()
     iteration = 0
-    
+    # print np.shape(pose.q)
+
     while not rospy.is_shutdown() and iteration < pose.q.shape[0]:
         now = rospy.get_rostime()
+        state_str.header.seq = iteration
         state_str.header.stamp.secs = now.secs
         state_str.header.stamp.nsecs = now.nsecs
-        state_str.name = pose.name + ['torso_yaw', 'neck_pitch', 'j_arm1_1', 'j_arm1_2', 'j_arm1_3', 'j_arm1_4', 'j_arm1_5', 'j_arm1_6', 'j_arm1_7', 'j_arm2_2', 'j_arm2_3', 'j_arm2_5', 'j_arm2_6', 'j_arm2_7', 'hip_yaw_1', 'hip_pitch_1', 'knee_pitch_1', 'ankle_yaw_1', 'hip_yaw_2', 'hip_pitch_2', 'knee_pitch_2', 'ankle_yaw_2', 'hip_yaw_3', 'hip_pitch_3', 'knee_pitch_3', 'ankle_yaw_3', 'hip_yaw_4', 'hip_pitch_4', 'knee_pitch_4', 'ankle_yaw_4','j_wheel_1','j_wheel_2','j_wheel_3','j_wheel_4','ankle_pitch_1','ankle_pitch_2','ankle_pitch_3','ankle_pitch_4']
-        # print state_str.name
+        state_str.name = pose.name
         state_str.position = pose.q[iteration,:]
-        # print np.shape(state_str.position)
-        rest = np.array([0.0, 0.45, 0.5, -0.3, -0.3, -2.2, 0.0, -0.8, 0.0, -0.3, -0.3, -0.0, -0.8, -0.0, 0.0, -1.0, -1.0, -0.78, 0.0, 1.0, 1.0, 0.78, 0.0, 1.0, 1.0, -0.78, 0.0, -1.0, -1.0, 0.78, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
-        state_str.position = np.concatenate((state_str.position,rest))
-        zerovec = np.zeros(len(state_str.name)-2)
+        if nj_extra > 0:
+            state_str.name = pose.name + name_extra
+            state_str.position = np.concatenate((state_str.position,q_extra))
+            zerovec = np.zeros(nj_extra)
         if np.shape(pose.qdot)[0] > 1:
             state_str.velocity = pose.qdot[iteration,:]
-            state_str.velocity = np.concatenate((state_str.velocity,zerovec))
+            if nj_extra > 0:
+                state_str.velocity = np.concatenate((state_str.velocity,zerovec))
         if np.shape(pose.tau)[0] > 1:
             state_str.effort = pose.tau[iteration,:]
-            state_str.effort = np.concatenate((state_str.effort,zerovec))
+            if nj_extra > 0:
+                state_str.effort = np.concatenate((state_str.effort,zerovec))
         # rospy.loginfo(state_str)            # use for debugging
         pub.publish(state_str)
         iteration += 1
@@ -45,6 +66,18 @@ def posePublisher(pose):
 
 if __name__ == '__main__':
     try:
+        path = '/home/user/catkin_ws/results/'
+        filename = 'RobotPose_centauro_max_momentum_3dof_2019-11-15T11:27:39.mat'
+        
+        matfile = sio.loadmat(path+filename)
+        matfile['name'] = [str(x) for x in matfile['name']]
+        pose = fn.RobotPose(
+            name=matfile['name'],
+            q=matfile['q'],
+            qdot=matfile['qdot'],
+            tau=matfile['tau'],
+            rate=matfile['rate']
+        )
         posePublisher(pose)
     except rospy.ROSInterruptException:
         pass
