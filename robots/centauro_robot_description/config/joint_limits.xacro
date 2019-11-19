@@ -64,4 +64,12 @@
 <xacro:property name="motor_A_effort" value="304"/>
 <xacro:property name="motor_B_effort" value="147"/>
 <xacro:property name="motor_C_effort" value="35"/>
+
+<motor name="hip_yaw" value="motor_A" />
+<motor name="hip_pitch" value="motor_A" />
+<motor name="knee_pitch" value="motor_A" />
+<motor name="ankle_yaw" value="motor_C" />
+<motor name="ankle_pitch" value="motor_B" />
+<motor name="j_wheel" value="motor_C" />
+
 </robot>

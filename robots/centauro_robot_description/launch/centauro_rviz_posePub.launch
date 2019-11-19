@@ -26,9 +26,9 @@
 
     <!-- centauro model configuration parameters -->
     <!-- centauro modules -->
-    <arg name="arms" default="left"/>
+    <arg name="arms" default="true"/>
     <arg name="torso" default="true"/>
-    <arg name="legs" default="false"/>
+    <arg name="legs" default="true"/>
     <arg name="head" default="false"/>
     <arg name="wheels" default="true"/>
     <arg name="static" default="false"/>
