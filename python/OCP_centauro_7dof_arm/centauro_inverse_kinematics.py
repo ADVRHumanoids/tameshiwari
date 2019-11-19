@@ -31,12 +31,13 @@ import joint_state as js
 import init_state
 import casadi_kin_dyn.pycasadi_kin_dyn as cas_kin_dyn
 
-def invKin(fk=None,j_str=None,q_init=None,p_init=None,p_des=None,T=None,animate=True):
+def invKin(fk=None,frame=None,j_str=None,q_init=None,p_init=None,p_des=None,T=None,animate=True):
     if not fk:
         print "forward kinematics function not provided"
     else:
         forKin = fk
 
+    frame = frame or 'arm1_8'
     j_str = j_str or config.JointNames('arm1').getName()
 
     j_lim = config.JointBounds(j_str)
@@ -73,6 +74,7 @@ def invKin(fk=None,j_str=None,q_init=None,p_init=None,p_des=None,T=None,animate=
     q_dot = np.zeros([2,nq])
 
     print "######## RUNNING INVERSE KINEMATICS CHECK ########\n"
+    print "Final joint configuration: %s [rad]" %q_sol.flatten()
     print "The desired xyz end-effector position: %s" %p_des.tolist()
     p_sol = np.around(forKin(q=q_sol)['ee_pos'].full().flatten(),2)
     print "The achieved xyz end-effector position: %s" %p_sol.tolist()
@@ -81,15 +83,17 @@ def invKin(fk=None,j_str=None,q_init=None,p_init=None,p_des=None,T=None,animate=
     tolerance = 0.005 # 1 millimeter
     if solver.stats()['return_status'] == 'Solve_Succeeded' and e_des <= tolerance:
         print "######## INVERSE KINEMATICS SUCCEEDED ########\n"
+        cont = True
     else:
         print "######## ERROR ######## \n\nDesired end point is not in task space \n\n######## ERROR ########\n"
+        cont = False
     
     if animate:
         pose = fn.RobotPose(name=j_str,q=q_motion,qdot=q_dot,rate=1/float(T))
         pose.interpolate(30.0)
         js.posePublisher(pose)
 
-    return q_sol.flatten()
+    return cont, q_sol.flatten()
 
 
 
@@ -107,5 +111,6 @@ if __name__ == "__main__":
 
     p_end = [1.0, 0.0, 1.35]
 
-    IK = invKin(fk=forKin,j_str=joint_str,q_init=q_init,p_des=p_end,animate=True,T=5)
+    cont, IK = invKin(fk=forKin,j_str=joint_str,q_init=q_init,p_des=p_end,animate=True,T=1)
     print IK
+    print cont
