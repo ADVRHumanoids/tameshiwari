@@ -141,7 +141,7 @@ class RobotPose:
                     Ar1 = [0, 1, 2*ti, 3*ti**2]
                     Ar2 = [1, tf, tf**2, tf**3]
                     Ar3 = [0, 1, 2*tf, 3*tf**2]
-                    A = np.array([Ar0,Ar1,Ar2,Ar3])
+                    A = np.array([Ar0,Ar1,Ar2,Ar3],dtype = 'float')
                     b = np.array([qi,qdoti,qf,qdotf])
                     x = np.linalg.solve(A,b)
                     xdot = np.polyder(x)
@@ -210,8 +210,11 @@ class RobotPose:
             'rate':self.rate
         }
         str_time = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
-        fileName = "%s/%s%s_%s.mat" % (dirName,suffix,fileName,str_time)
-        sio.savemat(fileName,saveDict)
+        fileName = "%s%s_%s.mat" % (suffix,fileName,str_time)
+        fullName = "%s/%s" % (dirName,fileName)
+        print "result saved to file: %s" %fileName
+        print "and directory: %s" %dirName
+        sio.savemat(fullName,saveDict)
     
     def savePlot(self,dirName='',fileName='',suffix='Plot_',ext='.tex'):
         if not dirName:

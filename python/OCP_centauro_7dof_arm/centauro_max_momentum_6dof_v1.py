@@ -28,19 +28,20 @@ import centauro_functions as cfn
 import centauro_config as config
 import joint_state_centauro as jsc
 import joint_state as js
-import init_state
+import init_state_centauro
 import casadi_kin_dyn.pycasadi_kin_dyn as cas_kin_dyn
 import centauro_inverse_kinematics as invKyn
 
 init_pose = 'home'
+
+minimize_torque = True
 
 # LOAD THE URDF & DEFINE CASADI CLASS
 
 load_file = True
 if load_file:
     dirName = os.path.split(os.path.abspath(os.path.realpath(sys.argv[0])))[0] +  '/casadi_urdf'
-    fileName = "%s/centauro_urdf_3dof_joints_1101000.txt" % dirName
-    # fileName = "%s/centauro_urdf_6dof_joints_1111110.txt" % dirName
+    fileName = "%s/centauro_urdf_6dof_joints_1111110.txt" % dirName
     with open(fileName, 'r') as f:
         urdf = f.read()
         # print urdf
@@ -50,14 +51,13 @@ else:
 kindyn = cas_kin_dyn.CasadiKinDyn(urdf)
 
 joint_str = config.JointNames('arm1').getName()
-print joint_str
-joint_num = [1,2,4]
-# joint_num = [1,2,3,4,5,6]
+# print joint_str
+joint_num = [1,2,3,4,5,6]
 joint_str = [joint_str[j] for j in [i for i,x in enumerate(joint_str) if int(x[-1]) in joint_num]]
 nj = len(joint_str)
 nq = 3
 
-print joint_str
+# print joint_str
 # JOINT LIMITS
 
 joint_lim = config.JointBounds(joint_str)
@@ -73,7 +73,7 @@ qdot_lb = [-x for x in qdot_ub]
 qddot_ub = 100*np.ones(nj)
 qddot_ub = qddot_ub.flatten().tolist()
 qddot_lb = [-x for x in qddot_ub]
-tau_ub = joint_lim.getTorqueBound()
+tau_ub = joint_lim.getTorqueBound() # [143.00 143.00]
 tau_lb = [-x for x in tau_ub]
 W_tau = [0.2, 0.6]
 
@@ -87,7 +87,7 @@ iter_max = 0
 
 N_tot = np.sum(N_stage)
 # print type(N_tot)
-Tf0_list = [3, 1]
+Tf0_list = [2, 1]
 Tf0_vec = np.asfarray(np.array(Tf0_list,ndmin=2))
 # Tf_lb = [Tf0_list[0], Tf0_list[1]]
 Tf_lb = [Tf0_list[0], 0.05]
@@ -127,22 +127,22 @@ qddot_0 = np.zeros(nj).tolist()
 
 # p_end = [1.0, 0.0, 1.35] 
 # p_end = [1.00696, 0.0, 1.23751]
-p_end = [1.00696, 0.0724726, 1.23751]
-# p_end = [0.9, 0.0, 1.24]
-# p_end = [0.95, 0.0, 1.24]
+# p_end = [1.00696, 0.0724726, 1.23751]
+p_end = [0.9, 0.0, 1.24]
+# p_end = [0.99, 0.0, 1.24]
 cont, q_end = invKyn.invKin(p_des=p_end,fk=forKin,frame=end_effector,j_str=joint_str,q_init=q_0,animate=False,T=2)
 
 # INITIAL GUESS ON JOINT POSITION
-p_constraint = False
+p_constraint = True
 initial_guess = False
 q_0_vec = ml.linspace(q_0,q_end,N_stage[0]+1).transpose()
 
-# cont = False
+# cont = True
 if not cont:
     sys.exit('####### RUNTIME ERROR: Invalid desired p_end defined! #######\n')
 
 # HOMING
-
+init_state_centauro.homing(pose=init_pose)
 
 
 # =============================================================================
@@ -235,7 +235,8 @@ for Mk in range(M):
             e_norm = norm_2(p_del)
             g += [e_norm]
             lbg += [0.]
-            ubg += [0.005]          # 1 millimeter deviation allowed
+            ubg += [0.005]          # 5 millimeter deviation allowed
+            # ubg += [0.05]          # 5 centimeter deviation allowed
         #   TERMINAL VELOCITY CONSTRAINT
         #   CONSTRAIN THE Z VELOCITY SUCH THAT THE EE IS GOING TO ARRIVE FROM THE TOP
         # ts_index = DM(np.eye(nj,6))
@@ -276,6 +277,19 @@ for Mk in range(M):
         E = hk_z
         # E = -dot(hk_z,hk_z)
         V += E
+
+        # minimize_torque = False
+        if minimize_torque:
+            gamma_iota = MX(6,1)
+            gamma_iota[2] = MX([1])
+            tau_iota = mtimes(Jk.T,gamma_iota)
+            w_tau_iota = 1000
+            W_tau_iota = MX(nj,nj)
+            W_tau_iota[4,4] = w_tau_iota
+            W_tau_iota[5,5] = w_tau_iota
+            E_2 = mtimes(tau_iota.T,mtimes(W_tau_iota,tau_iota))
+            V += E_2
+
         q_N1 = qk
     else:
         dt = MX.sym('dt_stage_2')
@@ -417,21 +431,18 @@ J_N = jacEE(q=q_opt[impact_ind,:])['J']
 
 v_N = mtimes(J_N,qdot_opt[impact_ind,:])
 mu = 5*10**(-2)
-# J_Nts, junk = J_N[:3,:]
 if nj < 6:
     J_Nts, junk = vertsplit(J_N,[0,nj,6])
 else: 
     J_Nts = J_N
-# J_Nts, junk = vertsplit(J_N,[0,nj,6])
 Lambda_iota = inv(mtimes(mtimes(J_Nts,inv(B_N)),J_Nts.T)+mu*DM.eye(sz))
-# Lambda_iota = inv(mtimes(mtimes(J_Nts,inv(B_N)),J_Nts.T))
-# print type(Lambda_iota)
-# print DM.eye(3)
 v_Nts = mtimes(J_Nts,qdot_opt[impact_ind,:])
 h_iota = mtimes(Lambda_iota,v_Nts)
 h_iota_lin = h_iota[:3]
 h_iota_z = h_iota_lin[-1]
 h_iota_resultant = np.linalg.norm(h_iota_lin)
+
+print "The joint space inertia matrix B(q): \n %s" %B_N
 
 print "The jacobian at the impact: \n %s" %J_N
 
@@ -452,8 +463,12 @@ print "This position is w.r.t. origin of the world frame"
 print "The optimized final momentum h_iota: %s [kg m/s]" %h_iota_lin
 print "The optimized final momentum ||h_iota||_2: %s [kg m/s]" %h_iota_resultant
 
-joint_str += ['j_arm1_3','j_arm1_5','j_arm1_6','j_arm1_7']
-# joint_str += ['j_arm1_7']
+gamma_iota_opt = DM(6,1)
+gamma_iota_opt[2] = DM([1])
+tau_iota_opt = mtimes(J_N.T,gamma_iota_opt)
+print "The optimized static torque at impact: %s [Nm]" %tau_iota_opt
+
+joint_str += ['j_arm1_7']
 # print type(len(joint_str-nj))
 if M == 1:
     zerovec = np.zeros([N_stage[0]+1,len(joint_str)-nj])
@@ -481,18 +496,60 @@ else:
     T_opt[0:N_stage[0]+1] = np.matlib.linspace(0,Tf_opt[0],N_stage[0]+1)
     T_opt[N_cum[0]:N_cum[1]+1] = np.matlib.linspace(Tf_opt[0],Tf_opt[0]+Tf_opt[1],N_stage[1]+1)
 
-pose.plot_q(lb=q_lb,ub=q_ub,limits=True,Tvec=T_opt,nj_plot=nj)
-pose.plot_qdot(lb=qdot_lb,ub=qdot_ub,limits=True,Tvec=T_opt,nj_plot=nj)
+# pose.plot_q(lb=q_lb,ub=q_ub,limits=True,Tvec=T_opt,nj_plot=nj)
+# pose.plot_qdot(lb=qdot_lb,ub=qdot_ub,limits=True,Tvec=T_opt,nj_plot=nj)
 # pose.plot_qddot(lb=qddot_lb,ub=qddot_ub,limits=True,Tvec=T_opt,nj_plot=nj)
 # ubtau_plt = np.zeros([N_tot+1,nj])
 # ubtau_plt[0:N_cum[0]] = np.matlib.repmat(ubtau[:,0].reshape(1,-1),N_cum[0],1)
 # ubtau_plt[N_cum[0]:] = np.matlib.repmat(ubtau[:,1].reshape(1,-1),N_stage[1]+1,1)
 
-pose.interpolate(30)
-# save = False
-# if save:
-#     pose.saveMat()
-# # print pose.rate
 
-jsc.posePublisher(pose=pose,init_pose=init_pose)
+
+
+
+
+###################################################################################################
+#   CREATE TWO POSE CLASSES: STAGE_1 AND STAGE_2
+#   INTERPOLATE TO A DESIRED SAMPLE RATE
+q_s1 = q_opt[0:N_cum[0]+1,:]
+q_s2 = q_opt[N_cum[0]:,:]
+#   there is one frame overlap, required for the interpolation
+qdot_s1 = qdot_opt[0:N_cum[0]+1,:]
+qdot_s2 = qdot_opt[N_cum[0]:,:]
+qddot_s1 = qddot_opt[0:N_cum[0]+1,:]
+qddot_s2 = qddot_opt[N_cum[0]:,:]
+tau_s1 = tau_opt[0:N_cum[0]+1,:]
+tau_s2 = tau_opt[N_cum[0]:,:]
+rate_s1 = int(1/dt_opt[0])
+rate_s2 = int(1/dt_opt[1])
+
+pose_s1 = fn.RobotPose(name=joint_str,q=q_s1,qdot=qdot_s1,qddot=qddot_s1,tau=tau_s1,rate=rate_s1)
+pose_s2 = fn.RobotPose(name=joint_str,q=q_s2,qdot=qdot_s2,qddot=qddot_s2,tau=tau_s2,rate=rate_s2)
+pose_s1.interpolate(30)
+pose_s2.interpolate(30)
+
+#   CONCATENATE THE TWO SEPERATE POSES
+if pose_s1.rate == pose_s2.rate:
+    q_s1 = pose_s1.q
+    q_s2 = pose_s2.q[1:-1,:]
+    qdot_s1 = pose_s1.qdot
+    qdot_s2 = pose_s2.qdot[1:-1,:]
+    qddot_s1 = pose_s1.qddot
+    qddot_s2 = pose_s2.qddot[1:-1,:]
+    tau_s1 = pose_s1.tau
+    tau_s2 = pose_s2.tau[1:-1,:]
+    q_msg = np.concatenate((q_s1,q_s2))
+    qdot_msg = np.concatenate((qdot_s1,qdot_s2))
+    qddot_msg = np.concatenate((qddot_s1,qddot_s2))
+    tau_msg = np.concatenate((tau_s1,tau_s2))
+    pose_msg = fn.RobotPose(name=joint_str,q=q_msg,qdot=qdot_msg,qddot=qddot_msg,tau=tau_msg,rate=pose_s1.rate)
+    save = True
+    if save:
+        pose_msg.saveMat()
+    raw_input('Press enter to continue, get ready to record: ')
+    jsc.posePublisher(pose=pose_msg,init_pose=init_pose)
+    # jsc.posePublisher(pose=pose_s1,init_pose=init_pose)
+else:
+    print "ERROR, the two stages don't have equal framerate"
+
 

@@ -32,7 +32,7 @@ def homing(q=None,pose=None):
         connections = pub.get_num_connections()
         # print "number of connections to this publisher: %s" %connections
         if connections > 0:
-            rospy.loginfo(state_str)            # use for debugging
+            # rospy.loginfo(state_str)            # use for debugging
             pub.publish(state_str)
             ter_publish = True
             # print "Message Published. Closing Program..."

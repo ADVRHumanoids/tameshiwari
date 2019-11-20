@@ -80,7 +80,8 @@ def invKin(fk=None,frame=None,j_str=None,q_init=None,p_init=None,p_des=None,T=No
     print "The achieved xyz end-effector position: %s" %p_sol.tolist()
     e_des = sqrt(sol['f'].full().flatten())
     print "The achieved ||des-res||_2 error: %s [mm]\n" %round(e_des*1000,0)
-    tolerance = 0.005 # 1 millimeter
+    tolerance = 0.005 # 5 millimeter
+    tolerance = 0.05 # 5 centimeter
     if solver.stats()['return_status'] == 'Solve_Succeeded' and e_des <= tolerance:
         print "######## INVERSE KINEMATICS SUCCEEDED ########\n"
         cont = True

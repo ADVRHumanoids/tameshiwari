@@ -710,6 +710,7 @@ else:
     h_ee_linopt = h_ee_opt
     h_ee_zopt = h_ee_opt[1]
     h_ee_resultant = np.linalg.norm(h_ee_linopt)
+    print "The joint space inertia matrix B(q): \n %s" %B_opt 
     print "The jacobian at the impact: \n %s" %jacEE_opt
     print "The optimized final EE linear velocity: %s [m/s]" %EE_vel_opt
     EE_vel_zopt = EE_vel_opt[1]
