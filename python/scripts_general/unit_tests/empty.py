@@ -1,18 +1,15 @@
 # EMPTY THIS SCRIPT AT THE END OF USAGE
 
-from casadi import *
+import subprocess
+import os
 
-vector = DM([0,0,1,0,0,0])
-print vector
-print vector.size()
-weight = MX([100])
-print weight
-W = MX(6,6)
-W[5,5] = 1 * weight
-tau = MX.ones(6)*3
-print tau
-print W
-print W.size()
+subprocess.call(["rosservice", "call", "/xbotcore/HomingExample_switch", "1"])
+subprocess.call(["rosservice", "call", "/xbotcore/HomingExample_switch", "0"])
+subprocess.call(["rosservice", "call", "/xbotcore/XBotCommunicationPlugin_switch", "1"])
+subprocess.call(["rosservice", "call", "/xbotcore/set_filter_profile_safe"])
+subprocess.call(["rosservice", "call", "/xbotcore/set_filter_profile_fast"])
 
 
-print mtimes(tau.T,mtimes(W,tau))
+os.system("ls -l")
+
+# print os.getcwd()

@@ -18,6 +18,7 @@ import matplotlib.pyplot as plt
 import scipy.io as sio
 import rospy
 from datetime import datetime
+from mpl_toolkits.mplot3d import Axes3D
 
 #==============================================================================
 #   CUSTOM PACKAGES
@@ -75,7 +76,7 @@ qddot_ub = qddot_ub.flatten().tolist()
 qddot_lb = [-x for x in qddot_ub]
 tau_ub = joint_lim.getTorqueBound() # [143.00 143.00]
 tau_lb = [-x for x in tau_ub]
-W_tau = [0.2, 0.6]
+W_tau = [0.6, 0.8]
 
 # TIME LIMITS
 
@@ -124,17 +125,19 @@ q_0 = config.HomePose(pose=init_pose,name=joint_str).getValue()
 qdot_0 = np.zeros(nj).tolist()
 qddot_0 = np.zeros(nj).tolist()
 
+z_adjust = -0.113 # [m]
+
 
 # p_end = [1.0, 0.0, 1.35] 
 # p_end = [1.00696, 0.0, 1.23751]
 # p_end = [1.00696, 0.0724726, 1.23751]
-p_end = [0.9, 0.0, 1.24]
-# p_end = [0.99, 0.0, 1.24]
+p_end = [0.9, 0.0, 1.24+z_adjust]            # THIS WAS USED BEFORE AND WAS HITTING THE BOARD BEFORE REAL MOTION STARTED
+# p_end = [0.99, 0.0, 1.24]           # THIS IS VERY VERY CLOSE TO SINGULARITY
 cont, q_end = invKyn.invKin(p_des=p_end,fk=forKin,frame=end_effector,j_str=joint_str,q_init=q_0,animate=False,T=2)
 
 # INITIAL GUESS ON JOINT POSITION
 p_constraint = True
-initial_guess = False
+initial_guess = True
 q_0_vec = ml.linspace(q_0,q_end,N_stage[0]+1).transpose()
 
 # cont = True
@@ -264,7 +267,7 @@ for Mk in range(M):
         # E = -1*dot(pdotk_z,pdotk_z)
         # V += E
         Bk = inertiaJS(q=qk)['B']
-        mu = 5*10**(-2)
+        mu = 10**(-2)
         Lamk = inv(mtimes(Jk_ts,mtimes(inv(Bk),Jk_ts.T))+mu*MX.eye(sz))
         # Lamk = inv(mtimes(Jk_ts,mtimes(inv(Bk),Jk_ts.T)))
         hk_ts = mtimes(Lamk,vk_ts)
@@ -463,10 +466,34 @@ print "This position is w.r.t. origin of the world frame"
 print "The optimized final momentum h_iota: %s [kg m/s]" %h_iota_lin
 print "The optimized final momentum ||h_iota||_2: %s [kg m/s]" %h_iota_resultant
 
+print "The optimized joint angles at impact: %s [rad]" %q_opt[impact_ind,:]
+
 gamma_iota_opt = DM(6,1)
 gamma_iota_opt[2] = DM([1])
 tau_iota_opt = mtimes(J_N.T,gamma_iota_opt)
 print "The optimized static torque at impact: %s [Nm]" %tau_iota_opt
+
+plot_trace = True
+if plot_trace:
+    xyz = np.zeros([N_tot+1,3])
+    for j in range(N_tot+1):
+        xyz[j,:] = forKin(q=q_opt[j,:])['ee_pos'].full().reshape(-1,3)
+    # 2D
+    # plt.figure()
+    # c_range = range(N_tot+1)
+    # plt.scatter(xyz[:,0],xyz[:,2],c=c_range,cmap='Greens',edgecolor="k",linewidths=0.5)
+    # # plt.scatter(xyz[:,1],xyz[:,2],c=c_range,cmap='Greens',marker='+',markeredgewidth=1.5, markeredgecolor='k')
+    # plt.scatter(xyz[impact_ind,0],xyz[impact_ind,2],s=150,c="r",marker="+")
+    # plt.grid(True)
+    # plt.show(block=True)
+    # 3D
+    fig = plt.figure()
+    ax = fig.gca(projection='3d')
+    ax.plot(xyz[:,0],xyz[:,1],xyz[:,2])
+    ax.scatter(xyz[impact_ind,0],xyz[impact_ind,1],xyz[impact_ind,2],s=150,c="r",marker="+")
+    plt.show()
+
+
 
 joint_str += ['j_arm1_7']
 # print type(len(joint_str-nj))
@@ -504,10 +531,6 @@ else:
 # ubtau_plt[N_cum[0]:] = np.matlib.repmat(ubtau[:,1].reshape(1,-1),N_stage[1]+1,1)
 
 
-
-
-
-
 ###################################################################################################
 #   CREATE TWO POSE CLASSES: STAGE_1 AND STAGE_2
 #   INTERPOLATE TO A DESIRED SAMPLE RATE
@@ -543,11 +566,11 @@ if pose_s1.rate == pose_s2.rate:
     qddot_msg = np.concatenate((qddot_s1,qddot_s2))
     tau_msg = np.concatenate((tau_s1,tau_s2))
     pose_msg = fn.RobotPose(name=joint_str,q=q_msg,qdot=qdot_msg,qddot=qddot_msg,tau=tau_msg,rate=pose_s1.rate)
-    save = True
+    save = False
     if save:
         pose_msg.saveMat()
-    raw_input('Press enter to continue, get ready to record: ')
-    jsc.posePublisher(pose=pose_msg,init_pose=init_pose)
+    # raw_input('Press enter to continue, get ready to record: ')
+    # jsc.posePublisher(pose=pose_msg,init_pose=init_pose)
     # jsc.posePublisher(pose=pose_s1,init_pose=init_pose)
 else:
     print "ERROR, the two stages don't have equal framerate"

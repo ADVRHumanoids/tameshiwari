@@ -399,4 +399,7 @@ class RobotPose:
         if save:
             self.savePlot(suffix='Plot_q_')
 
+    def plot_trace(self):
+        pass
+
     
