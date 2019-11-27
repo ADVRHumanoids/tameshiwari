@@ -99,19 +99,31 @@ def invKin(fk=None,frame=None,j_str=None,q_init=None,p_init=None,p_des=None,T=No
 
 
 if __name__ == "__main__":
-    urdf = rospy.get_param('robot_description')
+    load_file = True
+    if load_file:
+        dirName = os.path.split(os.path.abspath(os.path.realpath(sys.argv[0])))[0] +  '/casadi_urdf'
+        fileName = "%s/centauro_urdf_6dof_joints_1111110.txt" % dirName
+        with open(fileName, 'r') as f:
+            urdf = f.read()
+            # print urdf
+    else:
+        urdf = rospy.get_param('robot_description')
     kindyn = cas_kin_dyn.CasadiKinDyn(urdf)
     end_effector = 'arm1_8'
     forKin = Function.deserialize(kindyn.fk(end_effector))
 
     joint_str = config.JointNames('arm1').getName()
-    joint_num = [1,2,4]
+    joint_num = [1,2,3,4,5,6]
     joint_str = [joint_str[j] for j in [i for i,x in enumerate(joint_str) if int(x[-1]) in joint_num]]
     q_init = config.HomePose(name=joint_str).getValue()
     # print q_init
 
     p_end = [1.0, 0.0, 1.35]
+    p_end = [0.7, 0.16, 1.26]
 
-    cont, IK = invKin(fk=forKin,j_str=joint_str,q_init=q_init,p_des=p_end,animate=True,T=1)
+    init_pose = 'home'
+    q_0 = config.HomePose(pose=init_pose,name=joint_str).getValue()
+    cont, IK = invKin(p_des=p_end,fk=forKin,frame=end_effector,j_str=joint_str,q_init=q_0,animate=True,T=2)
+    # cont, IK = invKin(fk=forKin,j_str=joint_str,q_init=q_init,p_des=p_end,animate=True,T=1)
     print IK
     print cont

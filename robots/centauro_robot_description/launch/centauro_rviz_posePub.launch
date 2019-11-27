@@ -99,6 +99,9 @@
     <!-- Launch the start up python script so it goes to initial position -->
     <node pkg="tameshiwari" type="init_state_centauro.py" name="init_state" />
 
+    <!-- Launch a sphere on the torso frame with represent a spherical workspace which is always included. -->
+    <node name="torso_sphere" pkg="tameshiwari" type="torso_sphere.py" />
+
     <!-- <group ns="camera1">
     <node pkg="tf" type="static_transform_publisher" name="camera_broadcaster"
         args="2.5 0.0 1.2 1.57079 0 -1.57079 L00 camera1 10" />

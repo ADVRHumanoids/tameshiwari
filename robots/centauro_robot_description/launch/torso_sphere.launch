@@ -1,0 +1,5 @@
+<launch>
+    <node name="torso_sphere" pkg="tameshiwari" type="torso_sphere.py" >
+    </node>
+
+</launch>

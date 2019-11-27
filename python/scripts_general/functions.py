@@ -337,7 +337,7 @@ class RobotPose:
         if save:
             self.savePlot(suffix='Plot_qddot_')
 
-    def plot_tau(self,show=True,save=False,title=True,grid=True,legend_str='',block=True,lb=[],ub=[],limits=False,Tvec=[]):
+    def plot_tau(self,show=True,save=False,title=True,grid=True,legend_str='',block=True,lb=[],ub=[],limits=False,Tvec=[],nj_plot=None):
         if len(Tvec) == 0:
             Tvec = self.T
         
@@ -351,9 +351,17 @@ class RobotPose:
         ax.step(Tvec,self.tau, where='post')
         # ax.step(Tvec,self.tau)
         if limits:
-            for i in range(self.nj):
-                ax.step(Tvec,ub[:,i], where='post', color=colors[i], linestyle='dashed')
-                ax.step(Tvec,lb[:,i], where='post', color=colors[i], linestyle='dashed')
+            # for i in range(self.nj):
+            #     ax.step(Tvec,ub[:,i], where='post', color=colors[i], linestyle='dashed')
+            #     ax.step(Tvec,lb[:,i], where='post', color=colors[i], linestyle='dashed')
+            if np.shape(lb)[1]==self.nj:
+                for i in range(self.nj):
+                    ax.step(Tvec,ub[:,i], where='post', color=colors[i], linestyle='dashed')
+                    ax.step(Tvec,lb[:,i], where='post', color=colors[i], linestyle='dashed')
+            elif np.shape(lb)[1]==nj_plot:
+                for i in range(nj_plot):
+                    ax.step(Tvec,ub[:,i], where='post', color=colors[i], linestyle='dashed')
+                    ax.step(Tvec,lb[:,i], where='post', color=colors[i], linestyle='dashed')
 
         ax.set_xlabel("time [s]")
         ax.set_ylabel("$\\tau$ [Nm]")
@@ -402,4 +410,34 @@ class RobotPose:
     def plot_trace(self):
         pass
 
+
+
+
+###########################################
+#   RANDOM FUNCTIONS
+###########################################
+
+def inSphere(point, ref, radius):
+    if isinstance(point,list):
+        point = np.asarray(point)
+    if isinstance(ref,list):
+        ref = np.asarray(ref)
+    # Calculate the difference between the reference and measuring point
+    diff = np.subtract(point, ref)
+    # Calculate square length of vector (distance between ref and point)^2
+    dist = np.sum(np.power(diff, 2))
+    # If dist is less than radius^2, return True, else return False
+    return dist < radius ** 2
+
+def inWorkspace(point, ref, normal):
+    if isinstance(point,list):
+        point = np.asarray(point)
+    if isinstance(ref,list):
+        ref = np.asarray(ref)
+    if isinstance(normal,list):
+        normal = np.asarray(normal)
+    # Calculate the difference between the reference and measuring point
+    diff = np.subtract(point, ref)
+    # If the scalar product between the normal and diff is greater than zero than the return value is True
+    return np.inner(normal,diff) > 0
     

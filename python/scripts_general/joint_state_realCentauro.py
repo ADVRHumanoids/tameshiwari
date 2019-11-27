@@ -75,8 +75,14 @@ def posePublisher(pose,pubrate=120,init_pose=None,full_model=False,rostopic='pos
 
 if __name__ == '__main__':
     try:
+        # KARATE CHOP HORIZONTAL BOARD
+        # TESTED: TRUE
         path = '/home/user/catkin_ws/src/tameshiwari/python/OCP_centauro_7dof_arm/results'
         filename = 'RobotPose_centauro_max_momentum_6dof_v1_2019-11-21T15:46:28.mat'
+        # KARATE PUNCH VERTICAL BOARD:
+        # TESTED: FALSE
+        path = '/home/user/catkin_ws/src/tameshiwari/python/OCP_centauro_7dof_arm/results'
+        filename = 'RobotPose_centauro_max_momentum_TRUE6dof_v3_2019-11-27T12:55:13.mat'
         #######################################
         # LOAD FILE
         #######################################
