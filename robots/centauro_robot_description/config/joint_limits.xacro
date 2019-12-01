@@ -21,8 +21,10 @@
 <xacro:property name="ankle_yaw_lower" value="${[-2.5626, -2.5546, -2.5606, -2.6046]}"/>
 <xacro:property name="ankle_yaw_upper" value="${[ 2.5384,  2.5484,  2.5454,  2.5514]}"/>
 
-<xacro:property name="torso_yaw_lower" value="-2.618"/>
-<xacro:property name="torso_yaw_upper" value="2.618"/>
+<!-- <xacro:property name="torso_yaw_lower" value="-2.618"/>
+<xacro:property name="torso_yaw_upper" value="2.618"/> -->
+<xacro:property name="torso_yaw_lower" value="${[-1.0]}"/>
+<xacro:property name="torso_yaw_upper" value="${[1.0]}"/>
 
 <xacro:property name="j_arm_1_lower" value="${[-3.312, -3.3458]}"/>
 <xacro:property name="j_arm_2_lower" value="${[ 0.020, -3.4258]}"/>
@@ -57,6 +59,7 @@
 <xacro:property name="j_arm_6_velocity" value="${[6.00 6.00 ]}"/>
 <xacro:property name="j_arm_7_velocity" value="${[6.00 6.00 ]}"/>
 
+
 <!-- <xacro:property name="j_arm_1_torque" value="${[147.00, 147.00 ]}"/>
 <xacro:property name="j_arm_2_torque" value="${[147.00, 147.00 ]}"/>
 <xacro:property name="j_arm_3_torque" value="${[147.00, 147.00 ]}"/>
@@ -76,10 +79,12 @@
 <xacro:property name="motor_A_velocity" value="8.8"/>
 <xacro:property name="motor_B_velocity" value="8.1"/>
 <xacro:property name="motor_C_velocity" value="20.0"/>
+<xacro:property name="motor_D_velocity" value="5.7"/>
 
 <xacro:property name="motor_A_effort" value="304"/>
 <xacro:property name="motor_B_effort" value="147"/>
 <xacro:property name="motor_C_effort" value="35"/>
+<xacro:property name="motor_D_effort" value="147"/>
 
 <motor name="hip_yaw" value="motor_A" />
 <motor name="hip_pitch" value="motor_A" />
@@ -87,5 +92,6 @@
 <motor name="ankle_yaw" value="motor_C" />
 <motor name="ankle_pitch" value="motor_B" />
 <motor name="j_wheel" value="motor_C" />
+<motor name="torso_yaw" value="motor_D" />
 
 </robot>

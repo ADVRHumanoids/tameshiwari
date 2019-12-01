@@ -13,6 +13,8 @@
 #   vector of the hitting surface. This constraint represents a 2D box.
 #   Perpendicular to this box surface the contraints are limited infinitely.
 
+#   Adding Torso 
+
 #==============================================================================
 #   RELEASED PACKAGES
 #==============================================================================
@@ -43,21 +45,62 @@ import casadi_kin_dyn.pycasadi_kin_dyn as cas_kin_dyn
 import centauro_inverse_kinematics as invKyn
 
 # HITTING SURFACE NORMAL VECTOR
-n_hat = [0, 0, 1]       # For example this vector is normal to horizontal board which must be hit from the top.
-# n_hat = [-1, 0 , 0]     # This is for example a vector normal to a board that is mounted vertically.
+
+move = 'punch'           # punch or chop
+
+
+if move == 'chop':
+    n_hat = [0, 0, 1]       # For example this vector is normal to horizontal board which must be hit from the top.
+    constr_initial_pose = False
+    p_constraint = True
+    initial_guess = True
+    offdirectional_momentum = False
+    postimpact_velocity = False
+    minimize_torque = True
+    limit_workspace = True         # set to False if want to run an optimizer without endpoint
+    limit_ball = True
+    torso_fixed = True
+    minimize_time = False
+
+    Q_weight = 0.01
+
+    z_adjust = -0.113 # [m]
+    p_end = [0.9, 0.0, 1.24+z_adjust]           # THIS WAS USED BEFORE AND WAS HITTING THE BOARD BEFORE REAL MOTION STARTED
+
+elif move == 'punch':
+    n_hat = [-1, 0 , 0]     # This is for example a vector normal to a board that is mounted vertically.
+    constr_initial_pose = True
+    p_constraint = True
+    initial_guess = True
+    offdirectional_momentum = False
+    postimpact_velocity = True
+    minimize_torque = True
+    limit_workspace = True         # set to False if want to run an optimizer without endpoint
+    limit_ball = True
+    torso_fixed = False
+    minimize_time = False
+
+    Q_weight = 0.000001
+    Q_weight = 0.001
+
+    p_end = [0.8, 0.5, 1.35]                    # Nice one for hitting vertical board.
+
+else:
+    sys.exit('####### RUNTIME ERROR: Wrong move selected! #######\n')
 
 u_hat = n_hat + [0,0,0]
 
 init_pose = 'home'
-
-minimize_torque = True
 
 # LOAD THE URDF & DEFINE CASADI CLASS
 
 load_file = True
 if load_file:
     dirName = os.path.split(os.path.abspath(os.path.realpath(sys.argv[0])))[0] +  '/casadi_urdf'
-    fileName = "%s/centauro_urdf_6dof_joints_1111110.txt" % dirName
+    if torso_fixed:
+        fileName = "%s/centauro_urdf_6dof_joints_1111110.txt" % dirName
+    else:
+        fileName = "%s/centauro_urdf_7dof_joints_1111110_torso_test.txt" % dirName
     with open(fileName, 'r') as f:
         urdf = f.read()
         # print urdf
@@ -66,12 +109,32 @@ else:
 
 kindyn = cas_kin_dyn.CasadiKinDyn(urdf)
 
-joint_str = config.JointNames('arm1').getName()
+if torso_fixed:
+    joints = config.JointNames('arm1')
+else:
+    joints = config.JointNames('torso')
+    joints.addJoints('arm1')
+joint_str = joints.getName()
+
 # print joint_str
 joint_num = [1,2,3,4,5,6]
-joint_str = [joint_str[j] for j in [i for i,x in enumerate(joint_str) if int(x[-1]) in joint_num]]
+# joint_str = [joint_str[j] for j in [i for i,x in enumerate(joint_str) if int(x[-1]) in joint_num]]
+for joint in joint_str:
+    # print joint
+    # print type(joint)
+    try:
+        if int(joint[-1]) not in joint_num:
+            joint_str.remove(joint)
+    except:
+        pass
+# print joint_str
 nj = len(joint_str)
 nq = 3
+
+
+prot_str = ['j_arm1_5', 'j_arm1_6']
+prot_list = [i for i, joint in enumerate(joint_str) if joint in prot_str]
+print prot_list
 
 # print joint_str
 # JOINT LIMITS
@@ -79,6 +142,7 @@ nq = 3
 joint_lim = config.JointBounds(joint_str)
 q_lb = joint_lim.getLowerBound()
 q_ub = joint_lim.getUpperBound()
+
 # print q_lb 
 # print q_ub
 # q_lb = [-3.312, 0.04, -2.465]
@@ -94,6 +158,7 @@ qddot_lb = [-x for x in qddot_ub]
 tau_ub = joint_lim.getTorqueBound() # [143.00 143.00]
 tau_lb = [-x for x in tau_ub]
 W_tau = [0.6, 0.8]
+# W_tau = [0.6, 1.0]
 # W_tau = [0.6, 2.0]
 # W_tau = [1.6, 2.0]
 
@@ -105,9 +170,14 @@ N_stage = [N, 60]
 N_cum = np.cumsum(N_stage)
 iter_max = 0
 
+if constr_initial_pose:
+    Tf_1 = 2
+else:
+    Tf_1 = 1
+
 N_tot = np.sum(N_stage)
 # print type(N_tot)
-Tf0_list = [2, 1]
+Tf0_list = [Tf_1, 1]
 Tf0_vec = np.asfarray(np.array(Tf0_list,ndmin=2))
 # Tf_lb = [Tf0_list[0], Tf0_list[1]]
 Tf_lb = [Tf0_list[0], 0.05]
@@ -120,7 +190,6 @@ print np.shape(Tf_lb)
 Tf_ub = [Tf0_list[0], 3]
 Tf_ub = np.asfarray(np.array(Tf_ub,ndmin=2))
 
-minimize_time = False
 if minimize_time:
     Tf_lb[:,0] = Tf_lb[:,1]
     Tf_ub[:,0] = Tf_ub[:,1]
@@ -149,19 +218,18 @@ inertiaJS = Function.deserialize(kindyn.crba())
 # INITIAL JOINT STATE
 # p_start = [0.7, 0.16, 1.26]
 q_0 = config.HomePose(pose=init_pose,name=joint_str).getValue()
+print q_0
 # cont, q_0 = invKyn.invKin(p_des=p_start,fk=forKin,frame=end_effector,j_str=joint_str,q_init=q_0,animate=False,T=2)
 # q_0 = q_0.tolist()
 # q_0 = [0.0,0.0,0.0]
 qdot_0 = np.zeros(nj).tolist()
 qddot_0 = np.zeros(nj).tolist()
 
-limit_workspace = True
-limit_ball = False
 p_0 = forKin(q=q_0)['ee_pos'].full().flatten()
 R_0 = forKin(q=q_0)['ee_rot'].full()
 p_torso = [0.2, 0.0, 1.19045]
 ball_radius = 0.75/2
-z_adjust = -0.113 # [m]
+
 
 theta_lb = math.pi/2
 theta_ub = math.pi
@@ -169,20 +237,14 @@ theta_ub = math.pi
 # p_end = [1.0, 0.0, 1.35] 
 # p_end = [1.00696, 0.0, 1.23751]
 # p_end = [1.00696, 0.0724726, 1.23751]
-p_end = [0.9, 0.0, 1.24+z_adjust]           # THIS WAS USED BEFORE AND WAS HITTING THE BOARD BEFORE REAL MOTION STARTED
 # p_end = [0.9, 0.0, 1.24]
 # p_end = [0.8, 0.3, 1.24]                    # This is for hitting vertical board.
-# p_end = [0.8, 0.5, 1.35]                    # Nice one for hitting vertical board.
 # p_end = [0.7, 0.4, 1.45]
 # p_end = [0.99, 0.0, 1.24]                   # THIS IS VERY VERY CLOSE TO SINGULARITY
 # p_end = [0.7, 0.0, 1.0]                     # BOARD ON HIP LEVEL CLOSE TO TORSO
 cont, q_end = invKyn.invKin(p_des=p_end,fk=forKin,frame=end_effector,j_str=joint_str,q_init=q_0,animate=False,T=2)
 
 # INITIAL GUESS ON JOINT POSITION
-constr_initial_pose = True
-p_constraint = True
-initial_guess = True
-offdirectional_momentum = False
 q_0_vec = ml.linspace(q_0,q_end,N_stage[0]+1).transpose()
 
 # cont = True
@@ -192,7 +254,7 @@ if not fn.inWorkspace(p_0,p_end,n_hat):
     sys.exit('####### RUNTIME ERROR: Initial position is not in workspace! #######\n')
 
 # HOMING
-init_state_centauro.homing(pose=init_pose)
+# init_state_centauro.homing(pose=init_pose)
 
 
 # =============================================================================
@@ -298,6 +360,12 @@ for Mk in range(M):
             else:
                 w0 += q_0 + qdot_0 + qddot_0
 
+            if minimize_time:
+                L = dt
+                V += L
+                L = dot(qdotk,qdotk)/dot(qdot_ub,qdot_ub)*0.01
+                V += L
+
             #   ADD CONTINUITY CONSTRAINTS (ON POSITION AND VELOCITY)
             g += [qk_next - qk,qdotk_next - qdotk]
             lbg += np.zeros(nj*2).tolist()
@@ -398,19 +466,17 @@ for Mk in range(M):
                 E = dot(hk_ts - dot(hk_ts,u_hatMX)*u_hatMX,hk_ts - dot(hk_ts,u_hatMX)*u_hatMX)
                 V += E
 
-        # minimize_torque = False
         if minimize_torque:
             tau_iota = mtimes(Jk.T,u_hatMX)
             w_tau_iota = 1000
             W_tau_iota = MX(nj,nj)
-            W_tau_iota[4,4] = w_tau_iota
-            W_tau_iota[5,5] = w_tau_iota
+            for ind in prot_list:
+                W_tau_iota[ind,ind] = w_tau_iota
+            # W_tau_iota[4,4] = w_tau_iota
+            # W_tau_iota[5,5] = w_tau_iota
+            print W_tau_iota
             E_2 = mtimes(tau_iota.T,mtimes(W_tau_iota,tau_iota))
             V += E_2
-
-        if minimize_time:
-            E = N_stage[Mk]*dt
-            V += E
         
         q_N1 = qk
     else:
@@ -472,10 +538,6 @@ for Mk in range(M):
                 # vk_ts = mtimes(Jk_ts,qdotk) # Task space velocity vector
                 # L = dot(pdotk_x,pdotk_x) + dot(pdotk_y,pdotk_y)
                 # V += L
-                L = dot(qkmin1-qk,qkmin1-qk)
-                V += L
-            else:
-                L = dot(qkmin1-qk,qkmin1-qk)
                 # L = dot(qk,qk)
                 # L = dot(qdotk,qdotk)
                 # L = 0
@@ -484,6 +546,32 @@ for Mk in range(M):
                 # W_qdot = np.eye(nj)*weight
                 # L = mtimes(qdotk.T,mtimes(W_qdot,qdotk))
                 # L = 0
+                # L = dot(qkmin1-qk,qkmin1-qk)
+                # L = dot(qdotk,qdotk)/dot(qdot_ub,qdot_ub)*Q_weight
+                L = dot(qdotk,qdotk)/dot(qdot_ub,qdot_ub)
+                # L = dot(qdotk,qdotk)/dot(qdot_ub,qdot_ub)
+                V += L
+                # V += dt/dot(dt_ub[Mk],dt_ub[Mk])
+                V += dt/dt_ub[Mk]
+                # V += dot(dt,dt)/dot(dt_ub[Mk],dt_ub[Mk])
+                # pass
+            else:
+                L = dot(qkmin1-qk,qkmin1-qk)
+                V += L
+
+            if postimpact_velocity:
+                Jk = jacEE(q=qk)['J']
+                if nj < 6:
+                    Jk_ts, junk = vertsplit(Jk,[0,nj,6])
+                    sz = nj
+                else: 
+                    Jk_ts = Jk
+                    sz = 6
+                vk = mtimes(Jk,qdotk)
+                pdotk, omegak = vertsplit(vk,[0,3,6])
+                pdotk_para = dot(pdotk,n_hatMX)*n_hatMX
+                pdotk_perp = minus(pdotk,pdotk_para)
+                L = dot(pdotk_perp,pdotk_perp)
                 V += L
 
             #   ADD INQEULITY CONSTRAINTS (ON POSITION AND VELOCITY)
@@ -498,13 +586,12 @@ for Mk in range(M):
         # ubter = [0.001, 0.001]
         # lbg += lbter
         # ubg += ubter
+        #   WITHOUT SLACK
         lbg += np.zeros(nj).tolist()
         ubg += np.zeros(nj).tolist()
         #   TERMINAL COST 
-        #   NO TERMINAL COST FUNCTION IS DESIRED
-        # E = dot(q_N1-qk,q_N1-qk)
-        E = N_stage[Mk]*dt
-        V += E
+        # E = N_stage[Mk]*dt
+        # V += E
 
 
 # =============================================================================
@@ -620,9 +707,8 @@ print "The J_hat scalar at the moment of impact: %s" %J_hat_opt
 
 print "The optimized joint angles at impact: %s [rad]" %q_opt[impact_ind,:]
 
-gamma_iota_opt = DM(6,1)
-gamma_iota_opt[2] = DM([1])
-tau_iota_opt = mtimes(J_N.T,gamma_iota_opt)
+u_hatDM = DM(u_hat)
+tau_iota_opt = mtimes(J_N.T,u_hatDM)
 print "The optimized static torque at impact: %s [Nm]" %tau_iota_opt
 
 plot_trace = True
@@ -652,6 +738,7 @@ if plot_trace:
 
 
 joint_str += ['j_arm1_7']
+print joint_str
 # print type(len(joint_str-nj))
 if M == 1:
     zerovec = np.zeros([N_stage[0]+1,len(joint_str)-nj])
@@ -678,14 +765,14 @@ else:
     T_opt[0:N_stage[0]+1] = np.matlib.linspace(0,Tf_opt[0],N_stage[0]+1)
     T_opt[N_cum[0]:N_cum[1]+1] = np.matlib.linspace(Tf_opt[0],Tf_opt[0]+Tf_opt[1],N_stage[1]+1)
 
-pose.plot_q(lb=q_lb,ub=q_ub,limits=True,Tvec=T_opt,nj_plot=nj)
-pose.plot_qdot(lb=qdot_lb,ub=qdot_ub,limits=True,Tvec=T_opt,nj_plot=nj)
-pose.plot_qddot(lb=qddot_lb,ub=qddot_ub,limits=True,Tvec=T_opt,nj_plot=nj)
-ubtau_plt = np.zeros([N_tot+1,nj])
-ubtau_plt[0:N_cum[0]] = np.matlib.repmat(W_tau[0]*np.asarray(tau_ub).reshape(1,-1),N_cum[0],1)
-ubtau_plt[N_cum[0]:] = np.matlib.repmat(W_tau[1]*np.asarray(tau_ub).reshape(1,-1),N_stage[1]+1,1)
-lbtau_plt = -1*ubtau_plt
-pose.plot_tau(lb=lbtau_plt,ub=ubtau_plt,limits=True,Tvec=T_opt,nj_plot=nj)
+# pose.plot_q(lb=q_lb,ub=q_ub,limits=True,Tvec=T_opt,nj_plot=nj)
+# pose.plot_qdot(lb=qdot_lb,ub=qdot_ub,limits=True,Tvec=T_opt,nj_plot=nj)
+# pose.plot_qddot(lb=qddot_lb,ub=qddot_ub,limits=True,Tvec=T_opt,nj_plot=nj)
+# ubtau_plt = np.zeros([N_tot+1,nj])
+# ubtau_plt[0:N_cum[0]] = np.matlib.repmat(W_tau[0]*np.asarray(tau_ub).reshape(1,-1),N_cum[0],1)
+# ubtau_plt[N_cum[0]:] = np.matlib.repmat(W_tau[1]*np.asarray(tau_ub).reshape(1,-1),N_stage[1]+1,1)
+# lbtau_plt = -1*ubtau_plt
+# pose.plot_tau(lb=lbtau_plt,ub=ubtau_plt,limits=True,Tvec=T_opt,nj_plot=nj)
 
 
 ###################################################################################################
@@ -728,9 +815,9 @@ if pose_s1.rate == pose_s2.rate:
     if save:
         pose_msg.saveMat()
     raw_input('Press enter to continue, get ready to record: ')
-    jsc.posePublisher(pose=pose_msg,init_pose=init_pose)
-    # jsc.posePublisher(pose=pose_s1,init_pose=init_pose)
-    # raw_input('Press enter to continue, get ready to record: ')
-    # jsc.posePublisher(pose=pose_s2,init_pose=init_pose)
+    # jsc.posePublisher(pose=pose_msg,init_pose=init_pose)
+    jsc.posePublisher(pose=pose_s1,init_pose=init_pose)
+    raw_input('Press enter to continue, get ready to record: ')
+    jsc.posePublisher(pose=pose_s2,init_pose=init_pose)
 else:
     print "ERROR, the two stages don't have equal framerate"

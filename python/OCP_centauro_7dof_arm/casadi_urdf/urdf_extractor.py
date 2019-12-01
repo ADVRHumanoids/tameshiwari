@@ -25,24 +25,28 @@ import casadi_kin_dyn.pycasadi_kin_dyn as cas_kin_dyn
 # 'centauro_urdf_6dof_joints_1111110.txt'	6	1	1	1	1	1	1	0 done 
 # name	                                 DoF   sp  sr  sy	e  fy  fp  wy
 # 'centauro_urdf_7dof_joints_1111111.txt'	7	1	1	1	1	1	1	1 done
+# name	                                     DoF   sp  sr  sy	e  fy  fp  wy   torso
+# 'centauro_urdf_7dof_joints_1111110_torso.txt'	7	1	1	1	1	1	1	0   _torso   not
 
 dirName = os.path.split(os.path.abspath(os.path.realpath(sys.argv[0])))[0]
 if "casadi_urdf" not in dirName:
     sys.exit('####### Navigate to folder location of this file #######\n')
 
-fileName = 'centauro_urdf_7dof_joints_1111111.txt'
+fileName = 'centauro_urdf_7dof_joints_1111110_torso_test.txt'
 fileName = dirName + "/" + fileName
 print fileName
 
 urdf = rospy.get_param('robot_description')
 print urdf
-with open(fileName, 'w+') as f:
-        f.write(urdf)
+save = True
+if save:
+    with open(fileName, 'w+') as f:
+            f.write(urdf)
 
-with open(fileName, 'r') as f:
-    urdf_read = f.read()
+    with open(fileName, 'r') as f:
+        urdf_read = f.read()
 
-kindyn = cas_kin_dyn.CasadiKinDyn(urdf_read)
-fk_string = kindyn.fk('arm1_8')
-forKin = Function.deserialize(fk_string)
-print forKin
+    kindyn = cas_kin_dyn.CasadiKinDyn(urdf_read)
+    fk_string = kindyn.fk('arm1_8')
+    forKin = Function.deserialize(fk_string)
+    print forKin

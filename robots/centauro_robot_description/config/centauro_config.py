@@ -55,11 +55,11 @@ class HomePose():
 class JointNames():
     def __init__(self,keyword=None):
         # Use Keyword to extract certain joints, for example using "arm" to extract all arm joints
-        tree = ET.parse(filename_srdf)
-        root = tree.getroot()
+        self.tree = ET.parse(filename_srdf)
+        self.root = self.tree.getroot()
         self.name = []
         key = keyword or ''
-        for child in root:
+        for child in self.root:
             if child.tag == 'group' and child.attrib['name'] == 'joint_names':
                 for subchild in child:
                     if key in subchild.attrib['name']:
@@ -71,8 +71,17 @@ class JointNames():
     def printName(self):
         print self.name
 
-    def getNumJoints():
+    def getNumJoints(self):
         return len(self.name)
+
+    def addJoints(self,keyword=None):
+        key = keyword or ''
+        for child in self.root:
+            if child.tag == 'group' and child.attrib['name'] == 'joint_names':
+                for subchild in child:
+                    if key in subchild.attrib['name'] and subchild.attrib['name'] not in self.name:
+                        self.name += [subchild.attrib['name']]
+
 
 class JointBounds():
     def __init__(self,name=None):
@@ -97,6 +106,7 @@ class JointBounds():
                 joint_str += [string]
             except ValueError:
                 string = joint
+                num = 1
                 # print string
                 joint_str += [string]
             if "arm" in string:

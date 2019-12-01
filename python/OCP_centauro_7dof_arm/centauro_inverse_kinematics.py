@@ -102,24 +102,38 @@ if __name__ == "__main__":
     load_file = True
     if load_file:
         dirName = os.path.split(os.path.abspath(os.path.realpath(sys.argv[0])))[0] +  '/casadi_urdf'
-        fileName = "%s/centauro_urdf_6dof_joints_1111110.txt" % dirName
+        # fileName = "%s/centauro_urdf_6dof_joints_1111110.txt" % dirName
+        fileName = "%s/centauro_urdf_7dof_joints_1111110_torso.txt" % dirName
         with open(fileName, 'r') as f:
             urdf = f.read()
             # print urdf
     else:
         urdf = rospy.get_param('robot_description')
+    
     kindyn = cas_kin_dyn.CasadiKinDyn(urdf)
     end_effector = 'arm1_8'
     forKin = Function.deserialize(kindyn.fk(end_effector))
 
-    joint_str = config.JointNames('arm1').getName()
+    joints = config.JointNames('torso')
+    joints.addJoints('arm1')
+    # joints = config.JointNames('arm1')
+    joint_str = joints.getName()
     joint_num = [1,2,3,4,5,6]
-    joint_str = [joint_str[j] for j in [i for i,x in enumerate(joint_str) if int(x[-1]) in joint_num]]
+    for joint in joint_str:
+        try:
+            if int(joint[-1]) not in joint_num:
+                joint_str.remove(joint)
+        except:
+            pass
+    # joint_str = config.JointNames('arm1').getName()
+    # joint_num = [1,2,3,4,5,6]
+    # joint_str = [joint_str[j] for j in [i for i,x in enumerate(joint_str) if int(x[-1]) in joint_num]]
     q_init = config.HomePose(name=joint_str).getValue()
-    # print q_init
 
     p_end = [1.0, 0.0, 1.35]
-    p_end = [0.7, 0.16, 1.26]
+
+    z_adjust = -0.113
+    p_end = [0.9, 0.0, 1.24+z_adjust]
 
     init_pose = 'home'
     q_0 = config.HomePose(pose=init_pose,name=joint_str).getValue()

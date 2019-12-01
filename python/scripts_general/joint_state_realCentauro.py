@@ -75,19 +75,24 @@ def posePublisher(pose,pubrate=120,init_pose=None,full_model=False,rostopic='pos
 
 if __name__ == '__main__':
     try:
-        # KARATE CHOP HORIZONTAL BOARD
-        # TESTED: TRUE
-        path = '/home/user/catkin_ws/src/tameshiwari/python/OCP_centauro_7dof_arm/results'
-        filename = 'RobotPose_centauro_max_momentum_6dof_v1_2019-11-21T15:46:28.mat'
-        # KARATE PUNCH VERTICAL BOARD:
-        # TESTED: FALSE
-        path = '/home/user/catkin_ws/src/tameshiwari/python/OCP_centauro_7dof_arm/results'
-        filename = 'RobotPose_centauro_max_momentum_TRUE6dof_v3_2019-11-27T12:55:13.mat'
+        move = 'punch'           # punch or chop
+        if move == 'chop':
+            # KARATE CHOP HORIZONTAL BOARD
+            # TESTED: TRUE
+            path = '/home/user/catkin_ws/src/tameshiwari/python/OCP_centauro_7dof_arm/results'
+            filename = 'RobotPose_centauro_max_momentum_6dof_v1_2019-11-21T15:46:28.mat'
+        elif move == 'punch':
+            # KARATE PUNCH VERTICAL BOARD:
+            # TESTED: FALSE
+            path = '/home/user/catkin_ws/src/tameshiwari/python/OCP_centauro_7dof_arm/results'
+            filename = 'RobotPose_centauro_max_momentum_7dof_v1_2019-11-29T14:08:09.mat'
+        
         #######################################
         # LOAD FILE
         #######################################
         matfile = sio.loadmat(path+'/'+filename)
-        matfile['name'] = [str(x) for x in matfile['name']]
+        matfile['name'] = [str(x).strip() for x in matfile['name']]
+        # matfile['']
         pose = fn.RobotPose(
             name=matfile['name'],
             q=matfile['q'],
@@ -137,7 +142,10 @@ if __name__ == '__main__':
         #######################################
         # MOVE TO HITTING POSITION
         #######################################
-        q_iota = [-0.589212, 0.47064095, -0.18100785, -1.0331983, -1.16513015, -0.00538894, 0.0]
+        if move == 'chop':
+            q_iota = [-0.589212, 0.47064095, -0.18100785, -1.0331983, -1.16513015, -0.00538894, 0.0]
+        elif move == 'punch':
+            q_iota = [ 0.25870634, -1.06407394,  1.71197866, -1.16059366, -1.29211864,  0.93180674, -0.06231816, 0.0]
         create_impact = True
         if create_impact:
             name = matfile['name']
