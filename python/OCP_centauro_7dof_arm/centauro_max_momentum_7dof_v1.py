@@ -80,7 +80,7 @@ elif move == 'punch':
     torso_fixed = False
     minimize_time = False
 
-    Q_weight = 0.000001
+    # Q_weight = 0.000001
     Q_weight = 0.001
 
     p_end = [0.8, 0.5, 1.35]                    # Nice one for hitting vertical board.

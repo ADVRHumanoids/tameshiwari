@@ -139,21 +139,24 @@ if __name__ == '__main__':
             raw_input('Press enter to call: /xbotcore/set_filter_profile_safe')
             subprocess.call(["rosservice", "call", "/xbotcore/set_filter_profile_safe"])
 
+        
         #######################################
         # MOVE TO HITTING POSITION
         #######################################
-        if move == 'chop':
-            q_iota = [-0.589212, 0.47064095, -0.18100785, -1.0331983, -1.16513015, -0.00538894, 0.0]
-        elif move == 'punch':
-            q_iota = [ 0.25870634, -1.06407394,  1.71197866, -1.16059366, -1.29211864,  0.93180674, -0.06231816, 0.0]
-        create_impact = True
-        if create_impact:
-            name = matfile['name']
-            q_iota = np.matlib.repmat(q_iota,int(T*pubrate),1)
-            # print np.shape(q_iota)
-            pose_iota = fn.RobotPose(name=name,q=q_iota,rate=pubrate)
-            raw_input('Press enter to move to IMPACT: ')
-            posePublisher(pose=pose_iota,pubrate=pubrate,rostopic=rostopic)
+        hit_pose = True         # Put on false if not desired to move to hitting pose.
+        if hit_pose:
+            if move == 'chop':
+                q_iota = [-0.589212, 0.47064095, -0.18100785, -1.0331983, -1.16513015, -0.00538894, 0.0]
+            elif move == 'punch':
+                q_iota = [ 0.25870634, -1.06407394,  1.71197866, -1.16059366, -1.29211864,  0.93180674, -0.06231816, 0.0]
+            create_impact = True
+            if create_impact:
+                name = matfile['name']
+                q_iota = np.matlib.repmat(q_iota,int(T*pubrate),1)
+                # print np.shape(q_iota)
+                pose_iota = fn.RobotPose(name=name,q=q_iota,rate=pubrate)
+                raw_input('Press enter to move to IMPACT: ')
+                posePublisher(pose=pose_iota,pubrate=pubrate,rostopic=rostopic)
 
 
         #######################################
@@ -181,6 +184,9 @@ if __name__ == '__main__':
         raw_input('Press enter to EXECUTE TRAJECTORY: ')
         posePublisher(pose=pose,pubrate=pubrate,rostopic=rostopic)
 
+        if rostopic != 'pose_state':
+            raw_input('Press enter to call: /xbotcore/set_filter_profile_safe')
+            subprocess.call(["rosservice", "call", "/xbotcore/set_filter_profile_safe"])
 
     except rospy.ROSInterruptException:
         pass
