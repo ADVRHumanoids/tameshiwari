@@ -80,12 +80,15 @@ if __name__ == '__main__':
             # KARATE CHOP HORIZONTAL BOARD
             # TESTED: TRUE
             path = '/home/user/catkin_ws/src/tameshiwari/python/OCP_centauro_7dof_arm/results'
-            filename = 'RobotPose_centauro_max_momentum_6dof_v1_2019-11-21T15:46:28.mat'
+            # filename = 'RobotPose_centauro_max_momentum_6dof_v1_2019-11-21T15:46:28.mat'  # OLD without right initial position
+            filename = 'RobotPose_centauro_max_momentum_7dof_v1_2019-12-04T10:00:09.mat' # NEW
         elif move == 'punch':
             # KARATE PUNCH VERTICAL BOARD:
-            # TESTED: FALSE
+            # TESTED: True
             path = '/home/user/catkin_ws/src/tameshiwari/python/OCP_centauro_7dof_arm/results'
-            filename = 'RobotPose_centauro_max_momentum_7dof_v1_2019-11-29T14:08:09.mat'
+            # filename = 'RobotPose_centauro_max_momentum_7dof_v1_2019-11-29T14:08:09.mat' # OLD but probably the same
+            filename = 'RobotPose_centauro_max_momentum_7dof_v1_2019-12-04T10:09:13.mat' # NEW but probably the same
+
         
         #######################################
         # LOAD FILE
@@ -102,12 +105,12 @@ if __name__ == '__main__':
         )
         
         rostopic = '/xbotcore/ros_command'
-        # rostopic = 'pose_state'
+        # rostopic = '/pose_state'
         pubrate = 120.0
         slowrate = 1.0
         poserate = pubrate*slowrate
         pose.interpolate(poserate)
-        if rostopic == 'pose_state':
+        if rostopic == '/pose_state':
             T = 0.5
         else:
             T = 3
@@ -115,7 +118,7 @@ if __name__ == '__main__':
         #######################################
         # HOMING & INITIATE COMMUNICATION PLUGIN
         #######################################
-        if rostopic != 'pose_state':
+        if rostopic != '/pose_state':
             execute = raw_input('FIRST RUN? (y/n): ')
             if execute == 'y':
                 # START HOMING
@@ -135,7 +138,7 @@ if __name__ == '__main__':
         #######################################
         # FILTER SAFE MODE
         #######################################
-        if rostopic != 'pose_state':
+        if rostopic != '/pose_state':
             raw_input('Press enter to call: /xbotcore/set_filter_profile_safe')
             subprocess.call(["rosservice", "call", "/xbotcore/set_filter_profile_safe"])
 
@@ -174,7 +177,7 @@ if __name__ == '__main__':
         #######################################
         # FILTER FAST MODE
         #######################################
-        if rostopic != 'pose_state':
+        if rostopic != '/pose_state':
             raw_input('Press enter to call: /xbotcore/set_filter_profile_fast')
             subprocess.call(["rosservice", "call", "/xbotcore/set_filter_profile_fast"])
 
@@ -184,7 +187,7 @@ if __name__ == '__main__':
         raw_input('Press enter to EXECUTE TRAJECTORY: ')
         posePublisher(pose=pose,pubrate=pubrate,rostopic=rostopic)
 
-        if rostopic != 'pose_state':
+        if rostopic != '/pose_state':
             raw_input('Press enter to call: /xbotcore/set_filter_profile_safe')
             subprocess.call(["rosservice", "call", "/xbotcore/set_filter_profile_safe"])
 

@@ -51,7 +51,7 @@ move = 'punch'           # punch or chop
 
 if move == 'chop':
     n_hat = [0, 0, 1]       # For example this vector is normal to horizontal board which must be hit from the top.
-    constr_initial_pose = False
+    constr_initial_pose = True
     p_constraint = True
     initial_guess = True
     offdirectional_momentum = False
@@ -176,6 +176,7 @@ else:
     Tf_1 = 1
 
 N_tot = np.sum(N_stage)
+data_points = N_tot + 1
 # print type(N_tot)
 Tf0_list = [Tf_1, 1]
 Tf0_vec = np.asfarray(np.array(Tf0_list,ndmin=2))
@@ -256,7 +257,6 @@ if not fn.inWorkspace(p_0,p_end,n_hat):
 # HOMING
 # init_state_centauro.homing(pose=init_pose)
 
-
 # =============================================================================
 #   NONLINEAR PROGRAM --> FIND A SOLUTION FOR THE OPTIMAL CONTROL INPUT
 # =============================================================================
@@ -273,6 +273,14 @@ lbg = []
 ubg = []
 #   TORQUE INDEX VECTOR
 tau_ind = []
+#   SEVERAL CONSTRAINT CONCATENATION VECTORS
+q_lbopt = np.zeros([nj,N_tot+1])
+q_ubopt = np.zeros([nj,N_tot+1])
+qdot_lbopt = np.zeros([nj,N_tot+1])
+qdot_ubopt = np.zeros([nj,N_tot+1])
+qddot_lbopt = np.zeros([nj,N_tot+1])
+qddot_ubopt = np.zeros([nj,N_tot+1])
+
 #   CREATE SOME PREDEFINED VARIABLES
 gamma_iota = MX(6,1)
 gamma_iota[2] = MX([1])
@@ -298,6 +306,13 @@ qddotk = MX.sym('qddot_0',nj)
 w += [qk,qdotk,qddotk]
 lbw += q_lb + qdot_lb + qddot_lb
 ubw += q_ub + qdot_ub + qddot_ub
+q_lbopt[:,0] = q_lb
+q_ubopt[:,0] = q_ub
+qdot_lbopt[:,0] = qdot_lb
+qdot_ubopt[:,0] = qdot_ub
+qddot_lbopt[:,0] = qddot_lb
+qddot_ubopt[:,0] = qddot_ub
+
 if p_constraint and initial_guess:
     w0 += q_0_vec[:,0].tolist()
     w0 += qdot_0 + qddot_0
@@ -353,6 +368,12 @@ for Mk in range(M):
             w += [qk,qdotk,qddotk]
             lbw += q_lb + qdot_lb + qddot_lb
             ubw += q_ub + qdot_ub + qddot_ub
+            q_lbopt[:,k+1] = q_lb
+            q_ubopt[:,k+1] = q_ub
+            qdot_lbopt[:,k+1] = qdot_lb
+            qdot_ubopt[:,k+1] = qdot_ub
+            qddot_lbopt[:,k+1] = qddot_lb
+            qddot_ubopt[:,k+1] = qddot_ub
             # w0 += q_0 + qdot_0 + qddot_0
             if p_constraint and initial_guess:
                 w0 += q_0_vec[:,k+1].tolist()
@@ -521,6 +542,12 @@ for Mk in range(M):
             lbw += q_lb + qdot_lb + qddot_lb
             ubw += q_ub + qdot_ub + qddot_ub
             w0 += q_0 + qdot_0 + qddot_0
+            q_lbopt[:,k+1] = q_lb
+            q_ubopt[:,k+1] = q_ub
+            qdot_lbopt[:,k+1] = qdot_lb
+            qdot_ubopt[:,k+1] = qdot_ub
+            qddot_lbopt[:,k+1] = qddot_lb
+            qddot_ubopt[:,k+1] = qddot_ub
 
             experimental_brake = True
             if experimental_brake:
@@ -548,11 +575,12 @@ for Mk in range(M):
                 # L = 0
                 # L = dot(qkmin1-qk,qkmin1-qk)
                 # L = dot(qdotk,qdotk)/dot(qdot_ub,qdot_ub)*Q_weight
-                L = dot(qdotk,qdotk)/dot(qdot_ub,qdot_ub)
                 # L = dot(qdotk,qdotk)/dot(qdot_ub,qdot_ub)
+                L = dot(qdotk,qdotk)/dot(qdot_ub,qdot_ub)
+                V += L
+                L = dt/dt_ub[Mk]
                 V += L
                 # V += dt/dot(dt_ub[Mk],dt_ub[Mk])
-                V += dt/dt_ub[Mk]
                 # V += dot(dt,dt)/dot(dt_ub[Mk],dt_ub[Mk])
                 # pass
             else:
@@ -711,7 +739,7 @@ u_hatDM = DM(u_hat)
 tau_iota_opt = mtimes(J_N.T,u_hatDM)
 print "The optimized static torque at impact: %s [Nm]" %tau_iota_opt
 
-plot_trace = True
+plot_trace = False
 if plot_trace:
     xyz = np.zeros([N_tot+1,3])
     for j in range(N_tot+1):
@@ -735,9 +763,67 @@ if plot_trace:
         ax.scatter(xyz[impact_ind,0],xyz[impact_ind,1],xyz[impact_ind,2],s=150,c="r",marker="+")
         plt.show()
 
+Tf_opt = dt_opt*np.array(N_stage).reshape(-1,1)
+if M == 1:
+    T_opt = np.zeros([N_stage[0]+1,1])
+    T_opt[0:N_stage[0]+1] = np.matlib.linspace(0,Tf_opt[0],N_stage[0]+1)
+else:
+    T_opt = np.zeros([N_tot+1,1])
+    T_opt[0:N_stage[0]+1] = np.matlib.linspace(0,Tf_opt[0],N_stage[0]+1)
+    T_opt[N_cum[0]:N_cum[1]+1] = np.matlib.linspace(Tf_opt[0],Tf_opt[0]+Tf_opt[1],N_stage[1]+1)
 
+solver_param = fn.SolverParam(solver.stats(),N_tot+1,dt_opt,T_opt,Tf_opt,sol['f'].full())
+evaluate = True
+if evaluate:
+    evaluation = fn.RobotEvaluation()
+    evaluation.addSolverParam(solver_param.dict)
+    evaluation.addBoundedParam('q','joint_position',np.transpose(q_opt),q_lbopt,q_ubopt)
+    evaluation.addBoundedParam('qdot','joint_velocity',np.transpose(qdot_opt),qdot_lbopt,qdot_ubopt)
+    evaluation.addBoundedParam('qddot','joint_acceleration',np.transpose(qddot_opt),qddot_lbopt,qddot_ubopt)
+    tau_ubopt = np.zeros([N_tot+1,nj])
+    tau_ubopt[0:N_cum[0]] = np.matlib.repmat(W_tau[0]*np.asarray(tau_ub).reshape(1,-1),N_cum[0],1)
+    tau_ubopt[N_cum[0]:] = np.matlib.repmat(W_tau[1]*np.asarray(tau_ub).reshape(1,-1),N_stage[1]+1,1)
+    tau_lbopt = -1*tau_ubopt
+    evaluation.addBoundedParam('tau','joint_effort',np.transpose(tau_opt),tau_lbopt,tau_ubopt)
+    evaluation.addBoundedParam('Tf','final_time',Tf_opt,Tf_lb,Tf_ub)
+    evaluation.addParam('time',T_opt)
+    evaluation.addParam('joints',joint_str)
+    evaluation.addParam('n_hat',n_hat)
+    evaluation.addParam('impact_postion',p_end)
+    evaluation.addParam('stage_interval',N_stage)
+    evaluation.addParam('data_points',data_points)
+    evaluation.addParam('mu_regular',mu)
+    eval_momentum = True
+    if eval_momentum:
+        twist_opt = np.zeros([6,data_points])
+        jacobian_opt = np.zeros([6,nj,data_points])
+        joint_inertia_opt = np.zeros([nj,nj,data_points])
+        task_inertia_opt = np.zeros([6,6,data_points])
+        momentum_vector_opt = np.zeros([6,data_points])
+        momentum_scalar_opt = np.zeros([1,data_points])
+        for k in range(data_points):
+            q_k = q_opt[k,:]
+            qdot_k = qdot_opt[k,:]
+            jacobian_k = jacEE(q=q_k)['J']
+            twist_k = mtimes(jacobian_k,qdot_k)
+            joint_I_k = inertiaJS(q=q_k)['B']
+            task_I_k = inv(mtimes(jacobian_k,mtimes(inv(joint_I_k),jacobian_k.T))+mu*DM.eye(6))
+            h_vector_k = mtimes(task_I_k,twist_k)
+            h_scalar_k = mtimes(u_hatDM.T,h_vector_k)
+
+            twist_opt[:,k] = twist_k.full().flatten()
+            jacobian_opt[:,:,k] = jacobian_k.full()
+            joint_inertia_opt[:,:,k] = joint_I_k.full()
+            task_inertia_opt[:,:,k] = task_I_k.full()
+            momentum_vector_opt[:,k] = h_vector_k.full().flatten()
+            momentum_scalar_opt[:,k] = h_scalar_k.full()
+        
+        plt.figure()
+        plt.plot(T_opt,np.transpose(momentum_scalar_opt))
+        plt.show()
 
 joint_str += ['j_arm1_7']
+
 print joint_str
 # print type(len(joint_str-nj))
 if M == 1:
@@ -755,69 +841,63 @@ pose = fn.RobotPose(name=joint_str,q=q_opt,qdot=qdot_opt,qddot=qddot_opt,tau=tau
 # print joint_str
 # print pose.name
 
-
-Tf_opt = dt_opt*np.array(N_stage).reshape(-1,1)
-if M == 1:
-    T_opt = np.zeros([N_stage[0]+1,1])
-    T_opt[0:N_stage[0]+1] = np.matlib.linspace(0,Tf_opt[0],N_stage[0]+1)
-else:
-    T_opt = np.zeros([N_tot+1,1])
-    T_opt[0:N_stage[0]+1] = np.matlib.linspace(0,Tf_opt[0],N_stage[0]+1)
-    T_opt[N_cum[0]:N_cum[1]+1] = np.matlib.linspace(Tf_opt[0],Tf_opt[0]+Tf_opt[1],N_stage[1]+1)
-
-# pose.plot_q(lb=q_lb,ub=q_ub,limits=True,Tvec=T_opt,nj_plot=nj)
-# pose.plot_qdot(lb=qdot_lb,ub=qdot_ub,limits=True,Tvec=T_opt,nj_plot=nj)
-# pose.plot_qddot(lb=qddot_lb,ub=qddot_ub,limits=True,Tvec=T_opt,nj_plot=nj)
-# ubtau_plt = np.zeros([N_tot+1,nj])
-# ubtau_plt[0:N_cum[0]] = np.matlib.repmat(W_tau[0]*np.asarray(tau_ub).reshape(1,-1),N_cum[0],1)
-# ubtau_plt[N_cum[0]:] = np.matlib.repmat(W_tau[1]*np.asarray(tau_ub).reshape(1,-1),N_stage[1]+1,1)
-# lbtau_plt = -1*ubtau_plt
-# pose.plot_tau(lb=lbtau_plt,ub=ubtau_plt,limits=True,Tvec=T_opt,nj_plot=nj)
-
+plot_joints = True
+if plot_joints:
+    pose.plot_q(lb=q_lb,ub=q_ub,limits=True,Tvec=T_opt,nj_plot=nj)
+    pose.plot_qdot(lb=qdot_lb,ub=qdot_ub,limits=True,Tvec=T_opt,nj_plot=nj)
+    pose.plot_qddot(lb=qddot_lb,ub=qddot_ub,limits=True,Tvec=T_opt,nj_plot=nj)
+    ubtau_plt = np.zeros([N_tot+1,nj])
+    ubtau_plt[0:N_cum[0]] = np.matlib.repmat(W_tau[0]*np.asarray(tau_ub).reshape(1,-1),N_cum[0],1)
+    ubtau_plt[N_cum[0]:] = np.matlib.repmat(W_tau[1]*np.asarray(tau_ub).reshape(1,-1),N_stage[1]+1,1)
+    lbtau_plt = -1*ubtau_plt
+    pose.plot_tau(lb=lbtau_plt,ub=ubtau_plt,limits=True,Tvec=T_opt,nj_plot=nj)
 
 ###################################################################################################
-#   CREATE TWO POSE CLASSES: STAGE_1 AND STAGE_2
-#   INTERPOLATE TO A DESIRED SAMPLE RATE
-q_s1 = q_opt[0:N_cum[0]+1,:]
-q_s2 = q_opt[N_cum[0]:,:]
-#   there is one frame overlap, required for the interpolation
-qdot_s1 = qdot_opt[0:N_cum[0]+1,:]
-qdot_s2 = qdot_opt[N_cum[0]:,:]
-qddot_s1 = qddot_opt[0:N_cum[0]+1,:]
-qddot_s2 = qddot_opt[N_cum[0]:,:]
-tau_s1 = tau_opt[0:N_cum[0]+1,:]
-tau_s2 = tau_opt[N_cum[0]:,:]
 
-rate_s1 = int(1/dt_opt[0])
-rate_s2 = int(1/dt_opt[1])
+run_final = True
+if run_final:
+    #   CREATE TWO POSE CLASSES: STAGE_1 AND STAGE_2
+    #   INTERPOLATE TO A DESIRED SAMPLE RATE
+    q_s1 = q_opt[0:N_cum[0]+1,:]
+    q_s2 = q_opt[N_cum[0]:,:]
+    #   there is one frame overlap, required for the interpolation
+    qdot_s1 = qdot_opt[0:N_cum[0]+1,:]
+    qdot_s2 = qdot_opt[N_cum[0]:,:]
+    qddot_s1 = qddot_opt[0:N_cum[0]+1,:]
+    qddot_s2 = qddot_opt[N_cum[0]:,:]
+    tau_s1 = tau_opt[0:N_cum[0]+1,:]
+    tau_s2 = tau_opt[N_cum[0]:,:]
 
-pose_s1 = fn.RobotPose(name=joint_str,q=q_s1,qdot=qdot_s1,qddot=qddot_s1,tau=tau_s1,rate=rate_s1)
-pose_s2 = fn.RobotPose(name=joint_str,q=q_s2,qdot=qdot_s2,qddot=qddot_s2,tau=tau_s2,rate=rate_s2)
-pose_s1.interpolate(30)
-pose_s2.interpolate(30)
+    rate_s1 = int(1/dt_opt[0])
+    rate_s2 = int(1/dt_opt[1])
 
-#   CONCATENATE THE TWO SEPERATE POSES
-if pose_s1.rate == pose_s2.rate:
-    q_s1 = pose_s1.q
-    q_s2 = pose_s2.q[1:-1,:]
-    qdot_s1 = pose_s1.qdot
-    qdot_s2 = pose_s2.qdot[1:-1,:]
-    qddot_s1 = pose_s1.qddot
-    qddot_s2 = pose_s2.qddot[1:-1,:]
-    tau_s1 = pose_s1.tau
-    tau_s2 = pose_s2.tau[1:-1,:]
-    q_msg = np.concatenate((q_s1,q_s2))
-    qdot_msg = np.concatenate((qdot_s1,qdot_s2))
-    qddot_msg = np.concatenate((qddot_s1,qddot_s2))
-    tau_msg = np.concatenate((tau_s1,tau_s2))
-    pose_msg = fn.RobotPose(name=joint_str,q=q_msg,qdot=qdot_msg,qddot=qddot_msg,tau=tau_msg,rate=pose_s1.rate)
-    save = False
-    if save:
-        pose_msg.saveMat()
-    raw_input('Press enter to continue, get ready to record: ')
-    # jsc.posePublisher(pose=pose_msg,init_pose=init_pose)
-    jsc.posePublisher(pose=pose_s1,init_pose=init_pose)
-    raw_input('Press enter to continue, get ready to record: ')
-    jsc.posePublisher(pose=pose_s2,init_pose=init_pose)
-else:
-    print "ERROR, the two stages don't have equal framerate"
+    pose_s1 = fn.RobotPose(name=joint_str,q=q_s1,qdot=qdot_s1,qddot=qddot_s1,tau=tau_s1,rate=rate_s1)
+    pose_s2 = fn.RobotPose(name=joint_str,q=q_s2,qdot=qdot_s2,qddot=qddot_s2,tau=tau_s2,rate=rate_s2)
+    pose_s1.interpolate(30)
+    pose_s2.interpolate(30)
+
+    #   CONCATENATE THE TWO SEPERATE POSES
+    if pose_s1.rate == pose_s2.rate:
+        q_s1 = pose_s1.q
+        q_s2 = pose_s2.q[1:-1,:]
+        qdot_s1 = pose_s1.qdot
+        qdot_s2 = pose_s2.qdot[1:-1,:]
+        qddot_s1 = pose_s1.qddot
+        qddot_s2 = pose_s2.qddot[1:-1,:]
+        tau_s1 = pose_s1.tau
+        tau_s2 = pose_s2.tau[1:-1,:]
+        q_msg = np.concatenate((q_s1,q_s2))
+        qdot_msg = np.concatenate((qdot_s1,qdot_s2))
+        qddot_msg = np.concatenate((qddot_s1,qddot_s2))
+        tau_msg = np.concatenate((tau_s1,tau_s2))
+        pose_msg = fn.RobotPose(name=joint_str,q=q_msg,qdot=qdot_msg,qddot=qddot_msg,tau=tau_msg,rate=pose_s1.rate)
+        save = False
+        if save:
+            pose_msg.saveMat()
+        raw_input('Press enter to continue, get ready to record: ')
+        # jsc.posePublisher(pose=pose_msg,init_pose=init_pose)
+        jsc.posePublisher(pose=pose_s1,init_pose=init_pose)
+        raw_input('Press enter to continue, get ready to record: ')
+        jsc.posePublisher(pose=pose_s2,init_pose=init_pose)
+    else:
+        print "ERROR, the two stages don't have equal framerate"

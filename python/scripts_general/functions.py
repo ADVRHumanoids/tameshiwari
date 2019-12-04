@@ -410,6 +410,37 @@ class RobotPose:
     def plot_trace(self):
         pass
 
+class RobotEvaluation:
+    #   USED TO COLLECT DATA AND PLOT IN MATLAB
+    def __init__(self):
+        self.dict = {}
+    
+    def addSolverParam(self,subdict=None):
+        self.dict['solver'] = subdict
+    
+    def addBoundedParam(self,variable=None,string=None,x=None,x_lb=None,x_ub=None):
+        name = variable
+        name_lb = variable + '_lb'
+        name_ub = variable + '_ub'
+        subdict = {
+            name: x,
+            name_lb: x_lb,
+            name_ub: x_ub
+        }
+        self.dict[string] = subdict
+
+    def addParam(self,string=None,x=None):
+        self.dict[string] = x
+
+    # def addBoundedParam(self,variable=None,string=None,x=None,x_lb=None,x_ub=None):
+    #     name_lb = variable + '_lb'
+    #     name_ub = variable + '_ub'
+    #     subdict = {
+    #         'x': x,
+    #         'x_lb': x_lb,
+    #         'x_ub': x_ub
+    #     }
+    #     self.dict[string] = subdict
 
 
 
