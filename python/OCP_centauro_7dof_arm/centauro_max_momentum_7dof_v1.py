@@ -818,9 +818,6 @@ if evaluate:
             momentum_vector_opt[:,k] = h_vector_k.full().flatten()
             momentum_scalar_opt[:,k] = h_scalar_k.full()
         
-        plt.figure()
-        plt.plot(T_opt,np.transpose(momentum_scalar_opt))
-        plt.show()
 
 joint_str += ['j_arm1_7']
 

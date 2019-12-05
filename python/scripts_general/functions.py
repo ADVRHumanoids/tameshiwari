@@ -432,15 +432,13 @@ class RobotEvaluation:
     def addParam(self,string=None,x=None):
         self.dict[string] = x
 
-    # def addBoundedParam(self,variable=None,string=None,x=None,x_lb=None,x_ub=None):
-    #     name_lb = variable + '_lb'
-    #     name_ub = variable + '_ub'
-    #     subdict = {
-    #         'x': x,
-    #         'x_lb': x_lb,
-    #         'x_ub': x_ub
-    #     }
-    #     self.dict[string] = subdict
+    def save(self,fileName=None):
+        dirName = os.path.split(os.path.abspath(os.path.realpath(sys.argv[0])))[0]
+        fileName = "%s%s_%s.mat" % (suffix,fileName)
+        fullName = "%s/%s" % (dirName,fileName)
+        print "result saved to file: %s" %fileName
+        print "and directory: %s" %dirName
+        sio.savemat(fullName,saveDict)
 
 
 
