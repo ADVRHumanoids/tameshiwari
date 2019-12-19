@@ -23,9 +23,9 @@ B_e = B_e + triu(B_e,1)'
 factor = -2
 mu = 10^(factor)*eye(3);
 
-Lambda_e = inv(J_ts*inv(B_e)*J_ts' + mu);
+Lambda_e = inv(J_ts*inv(B_e)*J_ts' + mu)
 h_e = Lambda_e * pdot_e
-Lambda_e = inv(J_ts*inv(B_e)*J_ts');
+Lambda_e = inv(J_ts*inv(B_e)*J_ts')
 h_e = Lambda_e * pdot_e
 
 
@@ -50,7 +50,7 @@ B_e =   [[1.39993, -0.00539991, 0.606147],
 B_e = B_e + triu(B_e,1)';
 mu = 10^(factor)*eye(3);
 
-Lambda_e = inv(J_ts*inv(B_e)*J_ts' + mu);
+Lambda_e = inv(J_ts*inv(B_e)*J_ts' + mu)
 h_e = Lambda_e * pdot_e
-Lambda_e = inv(J_ts*inv(B_e)*J_ts');
+Lambda_e = inv(J_ts*inv(B_e)*J_ts')
 h_e = Lambda_e * pdot_e

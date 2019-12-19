@@ -3,12 +3,14 @@ clearvars; close all; clc
 %% Import Casadi depending on the system which is running
 try
 %   path for Linux machine
-    addpath('/home/user/Matlab/Casadi/casadi-linux-matlabR2014b-v3.4.5')
+    addpath('/home/user/Matlab/Casadi/casadi-linux-matlabR2014b-v3.4.5');
 catch
 %   path for macbook
-    addpath('/home')
+    addpath('/Users/Paul/Documents/MATLAB/Add-Ons/casadi-osx-matlabR2015a-v3.4.5');
 end
 import casadi.*
+
+impact = true(1)
 
 %% Import Pynocchio functions for evaluating results
 addpath('../python/OCP_centauro_7dof_arm/casadi_urdf')
@@ -22,18 +24,36 @@ jacEE = Function.deserialize(jacobian_end_effector)
 inertiaJS = Function.deserialize(ineratia_joint_space)
 
 %% Import results file
-addpath('../results/Karate chop arm optimal - with impact  4-dec')
-filename = 'XBotCore_log__2019_12_04__10_59_36.mat';
+if impact
+    addpath('../results/Karate chop arm optimal - with impact  4-dec')
+    filename = 'XBotCore_log__2019_12_04__10_59_36.mat';
+else
+    addpath('../results/Karate chop arm optimal - no impact 2-dec')
+    filename = 'XBotCore_log__2019_12_02__16_13_29.mat';
+end
 
 load(filename)
 
 %% Select experiment data
-T_lower = 2905.45;
-T_upper = 2910;
-T_tot = T_upper-T_lower;
-select = find(time>T_lower & time<T_upper);
-data_points = size(select,2);
-% plot(time(select),joint_velocity(left_arm,select))
+if impact
+    % with impact
+    T_lower = 2905.45;
+    T_upper = 2910;
+    T_tot = T_upper-T_lower;
+    select = find(time>T_lower & time<T_upper);
+    data_points = size(select,2);
+    figure(3)
+    plot(time(select),joint_velocity(left_arm,select))
+else
+    % without impact
+    T_lower = 11242.666;
+    T_upper = 11245.666;
+    T_tot = T_upper-T_lower;
+    select = find(time>T_lower & time<T_upper);
+    data_points = size(select,2);
+    figure(3)
+    plot(time(select),joint_velocity(left_arm,select))
+end
 
 joints = left_arm(1:6);
 nj = numel(joints);
@@ -49,6 +69,11 @@ figure(1)
 for i = 1:6
     subplot(3,2,i)
     plot(T,qdot_opt(i,:))
+end
+figure(4)
+for i = 1:6
+    subplot(3,2,i)
+    plot(T,q_opt(i,:))
 end
 
 % xlim([T_lower T_upper])
@@ -105,6 +130,12 @@ for i = 1:6
     subplot(3,2,i)
     hold on;
     plot(T,qdot_opt(i,:))
+end
+figure(4)
+for i = 1:6
+    subplot(3,2,i)
+    hold on;
+    plot(T,q_opt(i,:))
 end
 
 %% Calculate momentum

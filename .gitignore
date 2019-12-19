@@ -1,2 +1,8 @@
 *.user
 *.kdev4
+python/.DS_Store
+python/scripts_general/.DS_Store
+results/.DS_Store
+robots/.DS_Store
+robots/rr_robot_description/.DS_Store
+.DS_Store
