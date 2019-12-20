@@ -30,8 +30,6 @@
 #
 #==============================================================================
 
-#   v3 integrates the new cas_pyn library which delivers extended functionality
-
 #==============================================================================
 #   RELEASED PACKAGES
 #==============================================================================
@@ -51,7 +49,6 @@ from datetime import datetime
 #==============================================================================
 
 import functions as fn
-# import rec_joint_state as js
 import joint_state as js
 import init_state
 import tameshiwari.pynocchio_casadi as pyn
@@ -60,75 +57,11 @@ import casadi_kin_dyn.pycasadi_kin_dyn as cas_kin_dyn
 # =============================================================================
 #   INITIALIZATION
 # =============================================================================
-var_pl      = True
-var_ani     = True
-var_rec     = False
-var_inp     = False
-var_save    = False
+var_pl      = False
+var_ani     = False
+var_save    = True
 var_h_opt   = True
-working     = False
-EE_vel_z_constr = True
 EE_pos_constr = True
-dir_minus = True
-
-
-
-# if var_ani:
-#     # TODO: create functionality to choose homing position, default q = 0
-#     init_state.homing()
-
-# =============================================================================
-#   WEIGHTENING 
-# =============================================================================
-#   DEFAULT VALUES
-W = 0.2
-W_h = 1.0
-
-# TODO: Change the weightenings to have effect on the proper values
-# TODO: Create input function in functions.py to reduce clutter
-#   USER INPUTS
-if var_inp:
-    print "================ USER INPUT ================"
-    usr_h_opt = raw_input("Do you want to optimze for Time? (y/N): ")
-    if usr_h_opt != "":
-        try:
-            if usr_h_opt.lower() == 'y':
-                var_h_opt = True
-            elif usr_h_opt.lower() == 'n':
-                var_h_opt = False
-            print "The following value was entered: %s" %var_h_opt
-        except ValueError:
-            var_h_opt = False
-            print "Automatic response, default value: %s" %var_h_opt
-    else:
-        var_h_opt = False
-        print "Automatic response, default value: %s" %var_h_opt
-
-    if var_h_opt:
-        print "================ USER INPUT ================"
-        usr_W_time = raw_input("Enter a weighting for minimizing T (0,1.0): ")
-        if usr_W_time != "":
-            try:
-                W_h = float(usr_W_time)
-                print "The following value was entered: %s" %W_h
-            except ValueError:
-                print "Nothing was entered, default value: %s" %W_h
-
-    print "================ USER INPUT ================"
-    usr_W = raw_input("Enter the torque reduction factor W between (0.1,1.0): ")
-    if usr_W != "":
-        try:
-            W = float(usr_W)
-            print "The following value was entered: %s" %W
-        except ValueError:
-            print "Nothing was entered, default value: %s" %W
-
-    if W <= 0.1:
-        W = 0.1
-    elif W > 1.0:
-        W = 1.0
-    else:
-        pass
 
 # =============================================================================
 #   PARAMETERS
@@ -139,62 +72,41 @@ N = 120
 M = 2           # multi-stage coefficient
 N_stage = [N, 60]
 N_cum = np.cumsum(N_stage)
-# print N_cum
 N_tot = np.sum(N_stage)
-# print N_tot
 Tf = 3.
 h_0 = float(Tf/N)
 Tf_max = 10.
 h_min = 0
 h_max = float(Tf_max/N)
-# print h_max
 T = np.arange(0,Tf+h_0,h_0)
 T = T.reshape(-1,1)
 iter_max = 0
 rviz_rate = 30
 
 N_tot = np.sum(N_stage)
-Tf0_list = [3, 1]
+Tf0_list = [2, 1]
 Tf0_vec = np.asfarray(np.array(Tf0_list,ndmin=2))
-Tf_lb = [Tf0_list[0], 0.05]
+Tf_lb = [Tf0_list[0], 0.003]
 Tf_lb = np.asfarray(np.array(Tf_lb,ndmin=2))
 Tf_ub = [Tf0_list[0], 3]
 Tf_ub = np.asfarray(np.array(Tf_ub,ndmin=2))
 
 h0_vec = (Tf0_vec/N_stage).flatten().tolist()
-# print h0_vec
 lbh = (Tf_lb/N_stage).flatten().tolist()
-# print lbh
 ubh = (Tf_ub/N_stage).flatten().tolist()
-# print ubh
-
-# print h0_vec[0].tolist()
 
 #   INITIAL CONDITIONS (NUMERICAL)
 nj = 2
 nq = 3 # number of different q's --> q(t), qdot(t), qddot(t)
-# q_0 = np.zeros(nj).tolist()
 q_0 = [30, 130]
-# q_0 = [0, 0]
 q_0 = np.deg2rad(q_0).tolist()
 print q_0
-# q_0 = np.array([np.pi*3/4,np.pi/2]).reshape(-1,2).flatten().tolist()
 q_0_vec = np.matlib.repmat(np.array(q_0),N_tot+1,1)
-# q_0_vec = np.matlib.linspace(0,np.pi,N_tot+1).reshape(-1,1)
-# q_0_vec = np.hstack((q_0_vec,np.zeros([N_tot+1,1]))) #.reshape(-1,1).flatten().tolist()
-# print q_0
-# print np.shape(q_0_vec)
-# q_0_vec = np.zeros([N_tot+1,nj])
-# print q_0_vec
-# q_0_vec = np.ones([N+1,nj]) * q_0
 qdot_0 = np.zeros(nj).tolist()
 qddot_0 = np.zeros(nj).tolist()
-# qddot_0 = np.ones(nj,dtype=float)* 0.5
-# qddot_0 = qddot_0.tolist()
 
 #   HOMING TO INITIAL POSITION
 if var_ani:
-    # TODO: create functionality to choose homing position, default q = 0
     init_state.homing(q_0)
 
 #   TERMINAL CONDITIONS (NUMERICAL)
@@ -203,14 +115,16 @@ offsetX = 0.0800682
 offsetY = 0
 offsetZ = 1.2
 desX = 0
-# desY = 0.797
-desY = 0.780
+desY = 0.797
+# desY = 0.780
+# desY = 0.7
 # desY = 0.5
 # desY = 0.65
 desZ = 0
 # desZ = -0.4
 # desY = 0.5
 # desZ = 0.4
+p_end = np.array([desX, desY, desZ])
 EE_pos_N = [desX+offsetX, desY+offsetY, desZ+offsetZ]
 qdot_N = np.zeros(nj).tolist()
 qddot_N = np.zeros(nj).tolist()
@@ -227,7 +141,7 @@ ubqdot = [3.9, 6.1]
 # ubqdot = [10, 10]
 lbqdot = [x*-1 for x in ubqdot]
 #   TORQUE BOUNDS
-W_tau = [0.2, 0.6]
+W_tau = [0.6, 0.8]
 tau_lim_orange = 147.
 tau_lim_yellow = 147.
 tau_lim = np.array([tau_lim_orange, tau_lim_yellow],ndmin=2).transpose()
@@ -239,10 +153,6 @@ print lbtau
 #   ACCELERATION BOUNDS
 ubqddot = [100, 100]
 lbqddot = [x*-1 for x in ubqddot]
-# print ubqddot
-# print type(ubqddot)
-# print lbqddot
-# print type(lbqddot)
 
 # =============================================================================
 #   INVERSE DYNAMICS
@@ -251,8 +161,6 @@ lbqddot = [x*-1 for x in ubqddot]
 urdf = rospy.get_param('robot_description')
 kindyn = cas_kin_dyn.CasadiKinDyn(urdf)
 id_string = kindyn.rnea()
-# id_string = pyn.generate_inv_dyn(urdf)
-# invDyn = Function.deserialize(id_string)
 invDyn = Function.deserialize(id_string)
 print invDyn
 print ""
@@ -309,6 +217,13 @@ ubg = []
 #   TORQUE INDEX VECTOR
 tau_ind = []
 cnt = 0
+#   SEVERAL CONSTRAINT CONCATENATION VECTORS
+q_lbopt = np.zeros([nj,N_tot+1])
+q_ubopt = np.zeros([nj,N_tot+1])
+qdot_lbopt = np.zeros([nj,N_tot+1])
+qdot_ubopt = np.zeros([nj,N_tot+1])
+qddot_lbopt = np.zeros([nj,N_tot+1])
+qddot_ubopt = np.zeros([nj,N_tot+1])
 
 #   SECTION FOR IF TIME HAS TO BE OPTIMIZED
 h = MX.sym('h_stage_1')
@@ -316,14 +231,6 @@ w += [h]
 w0 += [h0_vec[0]]
 lbw += [lbh[0]]
 ubw += [ubh[0]]
-# if var_h_opt:
-#     h = MX.sym('h')
-#     w += [h]
-#     w0 += [h_0]
-#     lbw = [0.001]
-#     ubw = [h_max]
-# else:
-#     h = h_0
 
 qk = MX.sym('q_0',nj)
 qdotk = MX.sym('qdot_0',nj)
@@ -332,54 +239,31 @@ w += [qk,qdotk,qddotk]
 lbw += lbq + lbqdot + lbqddot
 ubw += ubq + ubqdot + ubqddot
 w0 += q_0_vec[0,:].tolist() + qdot_0 + qddot_0
+q_lbopt[:,0] = lbq
+q_ubopt[:,0] = ubq
+qdot_lbopt[:,0] = lbqdot
+qdot_ubopt[:,0] = ubqdot
+qddot_lbopt[:,0] = lbqddot
+qddot_ubopt[:,0] = ubqddot
 
 #   INITIAL CONDITIONS STATE VECTOR (POSITION, VELOCITY & ACCELERATION)
 #   --> IN GENERAL ONLY INIITAL POSITION CAN DEVIATE FROM THE ZERO VECTOR
-# g += [qk,qdotk,qddotk]
-# lbg += np.zeros(nj*nq).tolist()
-# ubg += np.zeros(nj*nq).tolist()
 g += [qk,qdotk]
 lbg += q_0 + np.zeros(nj).tolist()
 ubg += q_0 + np.zeros(nj).tolist()
-# g += [qk,qdotk]
-# lbg += np.zeros(nj*2).tolist()
-# ubg += np.zeros(nj*2).tolist()
-factor = np.ones(N_stage[0])
-steps = 10
-factor[-steps:] = np.matlib.linspace(1,0,steps)
 for Mi in range(M):
     if Mi == 0:
         for k in range(N_stage[Mi]):
-            #   ADD EXCLUSION OF CONFIGURATION SPACE BEFORE IMPACT
-            # EE_pos_k = forKin(q=qk)['ee_pos']
-            # EE_diff_yk = EE_pos_k[1] - EE_pos_N[1]
-            # EE_diff_zk = EE_pos_k[2] - EE_pos_N[2]
-            # EE_diff_k = vertcat(EE_diff_yk,EE_diff_zk)
-            # EE_dist_k = norm_2(EE_diff_k)
-            # g += [EE_dist_k]
-            # absolutebound = 0.3
-            # lowerbound = factor[k]*absolutebound
-            # lbg += [lowerbound]
-            # ubg += [inf]
-
             #   NEW NLP VARIABLE FOR THE CONTROL
             tauk = invDyn(q=qk,v=qdotk,a=qddotk)['tau']
-            # tau_ind += [np.shape(g)[0]*2,np.shape(g)[0]*2+1]
             tau_ind += [len(lbg),len(lbg)+1]
             g += [tauk]
             lbg += lbtau[:,Mi].tolist()
             ubg += ubtau[:,Mi].tolist()
 
-            #   NORMALIZE TAU AND H
-            # h_norm = (1/ubh[0]) * h
-            # tau_k_norm = 1/np.array(ubtau) * tauk
-
             #   INTEGRAL COST CONTRIBUTION
             if var_h_opt:
-                # L = W_h * h**2
-                # L = h*dot(tauk,qdotk)*0.001
-                L = 0
-                # L = -h*dot(tauk,tauk)*
+                L = h/ubh[0]
             else:
                 L = 0
             J += L
@@ -395,20 +279,26 @@ for Mi in range(M):
             w += [qk,qdotk,qddotk]
             lbw += lbq + lbqdot + lbqddot
             ubw += ubq + ubqdot + ubqddot
-            w0 += q_0_vec[k+1,:].tolist() + qdot_0 + qddot_0
+            w0 += q_0 + qdot_0 + qddot_0
+            q_lbopt[:,k+1] = lbq
+            q_ubopt[:,k+1] = ubq
+            qdot_lbopt[:,k+1] = lbqdot
+            qdot_ubopt[:,k+1] = ubqdot
+            qddot_lbopt[:,k+1] = lbqddot
+            qddot_ubopt[:,k+1] = ubqddot
 
             #   ADD INQEULITY CONSTRAINTS (ON POSITION AND VELOCITY)
             g += [qk_next - qk,qdotk_next - qdotk]
             lbg += np.zeros(nj*2).tolist()
             ubg += np.zeros(nj*2).tolist()
 
-
         #   TERMINAL CONSTRAINTS:
         #   TERMINAL POSITION CONSTRAINT
         if EE_pos_constr:
             EE_pos_k = forKin(q=qk)['ee_pos']
-            EE_diff_yk = EE_pos_k[1] - EE_pos_N[1]
-            EE_diff_zk = EE_pos_k[2] - EE_pos_N[2]
+            EE_pos_xk, EE_pos_yk, EE_pos_zk = vertsplit(EE_pos_k,range(4))
+            EE_diff_yk = EE_pos_yk - EE_pos_N[1]
+            EE_diff_zk = EE_pos_zk - EE_pos_N[2]
             EE_diff_k = vertcat(EE_diff_yk,EE_diff_zk)
             EE_dist_k = norm_2(EE_diff_k)
             g += [EE_dist_k]
@@ -417,52 +307,14 @@ for Mi in range(M):
         #   TERMINAL VELOCITY CONSTRAINT
         #   CONSTRAIN THE Z VELOCITY SUCH THAT THE EE IS GOING TO ARRIVE FROM THE TOP
         jacEE_N = jacEE(q=qk)['J']
-        jacEE_N_ts = jacEE_N[1:3,:] # Task space jacobian
-        EE_vel_N = mtimes(jacEE_N,qdotk)
-        EE_vel_zN = EE_vel_N[2]
-        EE_vel_N_ts = mtimes(jacEE_N_ts,qdotk) # Task space velocity vector
-        
-        if EE_vel_z_constr:
-            if dir_minus:
-                g += [EE_vel_zN]
-                lbg += [-inf]
-                ubg += [0]
-            else:
-                g += [EE_vel_zN]
-                lbg += [0]
-                ubg += [inf]
 
+        EE_vel_N = mtimes(jacEE_N,qdotk)
+        EE_vel_xN, EE_vel_yN, EE_vel_zN, EE_vel_rot = vertsplit(EE_vel_N,[0,1,2,3,6])
+        
         #   TERMINAL COST 
         #   IS GOING TO BE -1*EE_VEL_K
-        # E = -1*dot(EE_vel_zN,EE_vel_zN)
-        # J += E
-
-        #   TERMINAL COST --> MOMENTUM MAXIMIZATION
-        B_N = B_js(q=qk)['B']
-        if working:
-            #   working version
-            Lambda_ee_N = mtimes(mtimes(pinv(jacEE_N).T,B_N),pinv(jacEE_N)) # --> seems to work but is not correct to use
-            h_ee_N = mtimes(Lambda_ee_N,EE_vel_N)
-            h_ee_zN = h_ee_N[2]
-            h_ee_yN = h_ee_N[1]
-            E = -dot(h_ee_zN,h_ee_zN)
-            J += E
-        else:
-            #  experimental version --> proper way of calculating Lambda
-            Lambda_ee_N = inv(mtimes(jacEE_N_ts,mtimes(inv(B_N),jacEE_N_ts.T)))
-            h_ee_N_ts = mtimes(Lambda_ee_N,EE_vel_N_ts)
-            h_ee_zN_ts = h_ee_N_ts[1]
-            h_ee_yN_ts = h_ee_N_ts[0]
-            E = -dot(h_ee_zN_ts,h_ee_zN_ts)
-            J += E
-
-        # Lambda_ee_N = inv(mtimes(mtimes(jacEE_N,inv(B_N)),jacEE_N.T))
-        # Lambda_ee_N = inv(mtimes(jacEE_N,mtimes(inv(B_N),jacEE_N.T)))
-        # h_ee_linN = h_ee_N[0:3]
-        # E = -dot(h_ee_N,h_ee_N)
-        # E = -dot(h_ee_linN,h_ee_linN)
-        # E = -dot(h_ee_yN,h_ee_yN) + dot(h_ee_zN,h_ee_zN)
-        # E = -mtimes(h_ee_linN.T,h_ee_linN)
+        E = EE_vel_zN
+        J += E
 
     else:
         h = MX.sym('h_stage_2')
@@ -485,25 +337,11 @@ for Mi in range(M):
             # h_norm = (1/ubh[1]) * h
             # tau_k_norm = 1/np.array(ubtau) * tauk
 
-            #   INTEGRAL COST CONTRIBUTION
-            if var_h_opt:
-                if k > N_cum[0]+2:
-                    # L = W_h * h**2 + h*dot(qdotk,qdotk)
-                    L = h*dot(qdotk,qdotk)
-                    # L = W_h * h**2
-                    # L = W_h * h**2 + sum1(qdotk)
-                else:
-                    # L = W_h * h**2
-                    L = h*dot(qdotk,qdotk)
-            else:
-                # L = dot(qk,qk)
-                L = 0
-                # L = dot(qdotk,qdotk)
-            J += L
-
             #   INTEGRATE EULER METHOD
             qdotk_next = qdotk + h*qddotk 
             qk_next = qk + h*qdotk  + 0.5*qddotk*h**2
+
+            # qkmin1 = qk
 
             #   NEW NLP VARIABLE FOR THE CONTROL
             qk = MX.sym('q_' + str(k+1),nj)
@@ -512,11 +350,23 @@ for Mi in range(M):
             w += [qk,qdotk,qddotk]
             lbw += lbq + lbqdot + lbqddot
             ubw += ubq + ubqdot + ubqddot
-            w0 += q_0_vec[k+1,:].tolist() + qdot_0 + qddot_0
+            # w0 += q_0_vec[k+1,:].tolist() + qdot_0 + qddot_0
+            w0 += q_0 + qdot_0 + qddot_0
+            q_lbopt[:,k+1] = lbq
+            q_ubopt[:,k+1] = ubq
+            qdot_lbopt[:,k+1] = lbqdot
+            qdot_ubopt[:,k+1] = ubqdot
+            qddot_lbopt[:,k+1] = lbqddot
+            qddot_ubopt[:,k+1] = ubqddot
 
-            # L = dot(qk-qk_next,qk-qk_next)
-            # # L = dot(qdotk,qdotk)
-            # J += L
+            #   INTEGRAL COST CONTRIBUTION
+            #   L = h/ubh + \dot{q}_k+1^T\dot{q}_k+1/blablabla
+            if var_h_opt:                
+                L = 0.5*h/ubh[1] + dot(qdotk,qdotk)/dot(ubqdot,ubqdot)*0.1
+                # L = h + dot(qdotk,qdotk)
+            else:
+                L = dot(qdotk,qdotk)
+            J += L
 
             #   ADD INQEULITY CONSTRAINTS (ON POSITION AND VELOCITY)
             g += [qk_next - qk,qdotk_next - qdotk]
@@ -534,6 +384,8 @@ for Mi in range(M):
         ubg += np.zeros(2).tolist()
         #   TERMINAL COST 
         #   NO TERMINAL COST FUNCTION IS DESIRED
+        # E = mtimes((qk-q_N1).T,qk-q_N1)
+        # J += E
 
 # =============================================================================
 #   SOLVER CREATOR AND SOLUTION
@@ -642,64 +494,32 @@ for j in range(N_tot+1):
 #==============================================================================
 
 # CREATE A CLASS FOR THIS WHERE WE STORE Q,QDOT,QDDOT,TAU AND ALL THE OPTIMIZER STUFF
-solver_param = fn.SolverParam(solver.stats(),N,h_opt,T,Tf,sol['f'].full())
 pose = fn.RobotPose(q=q_opt,qdot=qdot_opt,qddot=qddot_opt,tau=tau_opt,rate=int(1/h_opt[0]))
 
-if var_save:
-    solver_param.saveMat()
-    pose.saveMat()
+# if var_save:
+#     solver_param.saveMat()
+#     pose.saveMat()
 
 #==============================================================================
 #   PRINT STATEMENTS
 #==============================================================================
 print "The initial time step size: h_0 = %s" %h0_vec
-print "The initial final time: Tf_0 = %s" %Tf0_vec
+print "The initial final time: Tf_0 = %s" %Tf0_vec.flatten()
 print "The optimized time step size: h_opt = %s" %h_opt.flatten().tolist()
 print "The optimized final time: Tf_opt = %s" %Tf_opt.flatten().tolist()
 
 impact_ind = N_stage[0]
-B_opt = B_js(q=q_opt[impact_ind,:])['B']
 jacEE_opt = jacEE(q=q_opt[impact_ind,:])['J']
+EE_vel_opt = mtimes(jacEE_opt,qdot_opt[impact_ind,:])
 
-if working:   
-    #   Working
-    EE_vel_opt = mtimes(jacEE_opt,qdot_opt[impact_ind,:])
-    Lambda_ee_opt = mtimes(mtimes(pinv(jacEE_opt).T,B_opt),pinv(jacEE_opt))
-    h_ee_opt = mtimes(Lambda_ee_opt,EE_vel_opt)
-    h_ee_zopt = h_ee_opt[2]
-    h_ee_linopt = h_ee_opt[0:3]
-    h_ee_resultant = np.linalg.norm(h_ee_linopt)
-
-    print "The jacobian at the impact: \n %s" %jacEE_opt
-    print "The optimized final EE linear velocity: %s [m/s]" %EE_vel_opt[0:3]
-    print "The optimized final EE rotational velocity: %s [rad/s]" %EE_vel_opt[3:]
-    EE_vel_zopt = EE_vel_opt[2]
-    print "The optimized final EE velocity along the z-axis: %s [m/s]" %EE_vel_zopt
-    print "The optimized final joint velocties: %s [rad/s]" %qdot_opt[impact_ind,:]
-    print "The optimized final momentum h_e: %s [kg m/s]" %h_ee_linopt
-    print "The optimized final momentum ||h_e||_2: %s [kg m/s]" %h_ee_resultant
-    EE_pos = forKin(q=q_opt[impact_ind,:])['ee_pos']
-    print "The optimized final EE cartesian position: %s [m]" %(EE_pos - J01_pos)
-    print "This position is w.r.t. origin of joint 1"
-else:
-    #   Experiment
-    jacEE_opt = jacEE_opt[1:3,:]
-    Lambda_ee_opt = inv(mtimes(mtimes(jacEE_opt,inv(B_opt)),jacEE_opt.T))
-    EE_vel_opt = mtimes(jacEE_opt,qdot_opt[impact_ind,:])
-    h_ee_opt = mtimes(Lambda_ee_opt,EE_vel_opt)
-    h_ee_linopt = h_ee_opt
-    h_ee_zopt = h_ee_opt[1]
-    h_ee_resultant = np.linalg.norm(h_ee_linopt)
-    print "The jacobian at the impact: \n %s" %jacEE_opt
-    print "The optimized final EE linear velocity: %s [m/s]" %EE_vel_opt
-    EE_vel_zopt = EE_vel_opt[1]
-    print "The optimized final EE velocity along the z-axis: %s [m/s]" %EE_vel_zopt
-    print "The optimized final joint velocties: %s [rad/s]" %qdot_opt[impact_ind,:]
-    print "The optimized final momentum h_e: %s [kg m/s]" %h_ee_linopt
-    print "The optimized final momentum ||h_e||_2: %s [kg m/s]" %h_ee_resultant
-    EE_pos = forKin(q=q_opt[impact_ind,:])['ee_pos']
-    print "The optimized final EE cartesian position: %s [m]" %(EE_pos - J01_pos)
-    print "This position is w.r.t. origin of joint 1"
+print "The optimized final EE linear velocity: %s [m/s]" %EE_vel_opt[0:3]
+print "The optimized final EE rotational velocity: %s [rad/s]" %EE_vel_opt[3:]
+EE_vel_zopt = EE_vel_opt[2]
+print "The optimized final EE velocity along the z-axis: %s [m/s]" %EE_vel_zopt
+print "The optimized final joint velocties: %s [rad/s]" %qdot_opt[impact_ind,:]
+EE_pos = forKin(q=q_opt[impact_ind,:])['ee_pos']
+print "The optimized final EE cartesian position: %s [m]" %(EE_pos - J01_pos)
+print "This position is w.r.t. origin of joint 1"
 
 #==============================================================================
 #   PLOTTING THE RESULTS
@@ -707,13 +527,13 @@ else:
 
 if var_pl or var_save:
     # pose.plot_q(show=var_pl,save=var_save,title=True,block=False,lb=lbq,ub=ubq,limits=True,Tvec=T_opt)
-    pose.plot_qdot(show=var_pl,save=var_save,title=True,block=False,lb=lbqdot,ub=ubqdot,limits=True,Tvec=T_opt)
+    pose.plot_qdot(show=var_pl,save=False,title=True,block=False,lb=lbqdot,ub=ubqdot,limits=True,Tvec=T_opt)
     # pose.plot_qddot(show=var_pl,save=var_save,title=True,block=False,Tvec=T_opt)
     # tau_lim = np.matlib.repmat(ubtau,pose.N,1)
     ubtau_plt = np.zeros([N_tot+1,nj])
     ubtau_plt[0:N_cum[0]] = np.matlib.repmat(ubtau[:,0].reshape(1,-1),N_cum[0],1)
     ubtau_plt[N_cum[0]:] = np.matlib.repmat(ubtau[:,1].reshape(1,-1),N_stage[1]+1,1)
-    # pose.plot_tau(show=var_pl,save=var_save,title=True,block=False,lb=-ubtau_plt,ub=ubtau_plt,limits=True,Tvec=T_opt)
+    pose.plot_tau(show=var_pl,save=False,title=True,block=False,lb=-ubtau_plt,ub=ubtau_plt,limits=True,Tvec=T_opt)
     
     # pose.plot_joint(joint=1,nq=2,show=False,save=False,title=True,block=False)
     # pose.plot_joint(joint=2,nq=2,show=False,save=False,title=True,block=False)
@@ -852,9 +672,44 @@ if var_pl or var_save:
     # plt.quiver(range(N_stage[0]+1),zero_vec,EE_vel_T_ts[:,0],EE_vel_T_ts[:,1])
     # plt.show(block=False)
 
-
     if var_pl:
         plt.show()
+    
+    Tf_opt = h_opt*np.array(N_stage).reshape(-1,1)
+    if M == 1:
+        T_opt = np.zeros([N_stage[0]+1,1])
+        T_opt[0:N_stage[0]+1] = np.matlib.linspace(0,Tf_opt[0],N_stage[0]+1)
+    else:
+        T_opt = np.zeros([N_tot+1,1])
+        T_opt[0:N_stage[0]+1] = np.matlib.linspace(0,Tf_opt[0],N_stage[0]+1)
+        T_opt[N_cum[0]:N_cum[1]+1] = np.matlib.linspace(Tf_opt[0],Tf_opt[0]+Tf_opt[1],N_stage[1]+1)
+
+    data_points = N_tot + 1
+    solver_param = fn.SolverParam(solver.stats(),data_points,h_opt,T,Tf,sol['f'].full())
+    if var_save:
+        evaluation = fn.RobotEvaluation()
+        evaluation.addSolverParam(solver_param.dict)
+        evaluation.addBoundedParam('q','joint_position',np.transpose(q_opt),q_lbopt,q_ubopt)
+        evaluation.addBoundedParam('qdot','joint_velocity',np.transpose(qdot_opt),qdot_lbopt,qdot_ubopt)
+        evaluation.addBoundedParam('qddot','joint_acceleration',np.transpose(qddot_opt),qddot_lbopt,qddot_ubopt)
+        tau_ubopt = np.zeros([nj,data_points])
+        tau_ubopt[:,0:N_cum[0]] = np.matlib.repmat(W_tau[0]*tau_lim[0,:].reshape(-1,1),1,N_cum[0])
+        tau_ubopt[:,N_cum[0]:] = np.matlib.repmat(W_tau[1]*tau_lim[0,:].reshape(-1,1),1,N_stage[1]+1)
+        tau_lbopt = -1*tau_ubopt
+        evaluation.addBoundedParam('tau','joint_effort',np.transpose(tau_opt),tau_lbopt,tau_ubopt)
+        evaluation.addBoundedParam('Tf','final_time',Tf_opt,Tf_lb,Tf_ub)
+        evaluation.addParam('time',np.transpose(T_opt))
+        evaluation.addParam('impact_postion',p_end)
+        evaluation.addParam('stage_interval',N_stage)
+        evaluation.addParam('data_points',data_points)
+        fileName = os.path.splitext(os.path.basename(__file__))[0]
+        print fileName
+        evaluation.save(fileName)
+        
+
+
+
+
     
 #==============================================================================
 #   ANIMATING THE RESULTS WITH RVIZ

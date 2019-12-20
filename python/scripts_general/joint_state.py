@@ -38,7 +38,7 @@ def posePublisher(pose):
             state_str.velocity = pose.qdot[iteration,:]
         if np.shape(pose.tau)[0] > 1:
             state_str.effort = pose.tau[iteration,:]
-        rospy.loginfo(state_str)            # use for debugging
+        # rospy.loginfo(state_str)            # use for debugging
         pub.publish(state_str)
         iteration += 1
         rate.sleep()

@@ -434,11 +434,17 @@ class RobotEvaluation:
 
     def save(self,fileName=None):
         dirName = os.path.split(os.path.abspath(os.path.realpath(sys.argv[0])))[0]
-        fileName = "%s%s_%s.mat" % (suffix,fileName)
+        dirName = dirName + '/results'
+        str_time = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+        if not fileName:
+            fileName = "%s_%s" % ('data_evaluation',str_time)
+        else:
+            fileName = "%s_%s" % (fileName,str_time)
         fullName = "%s/%s" % (dirName,fileName)
         print "result saved to file: %s" %fileName
         print "and directory: %s" %dirName
-        sio.savemat(fullName,saveDict)
+        print fullName
+        sio.savemat(fullName,self.dict)
 
 
 

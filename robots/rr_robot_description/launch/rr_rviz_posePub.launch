@@ -10,7 +10,7 @@
     <!-- Launch the start up python script so it goes to initial position -->
     <node pkg="tameshiwari" type="init_state.py" name="init_state" />
 
-    <group ns="camera1">
+    <!-- <group ns="camera1">
     <node pkg="tf" type="static_transform_publisher" name="camera_broadcaster"
         args="2.5 0.0 1.2 1.57079 0 -1.57079 L00 camera1 10" />
     <node name="camera_info" pkg="rostopic" type="rostopic"
@@ -24,5 +24,5 @@
         binning_x: 0, binning_y: 0,
         roi: {x_offset: 0, y_offset: 0, height: 530, width: 640, do_rectify: false}}' -r 2"
         output="screen"/>
-    </group>
+    </group> -->
 </launch>
