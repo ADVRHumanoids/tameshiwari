@@ -60,12 +60,13 @@ if move == 'chop':
     limit_workspace = True         # set to False if want to run an optimizer without endpoint
     limit_ball = True
     torso_fixed = True
-    minimize_time = False
+    minimize_time = False           # of stage 1
 
-    Q_weight = 0.01
+    # Q_weight = 0.01
 
     z_adjust = -0.113 # [m]
     p_end = [0.9, 0.0, 1.24+z_adjust]           # THIS WAS USED BEFORE AND WAS HITTING THE BOARD BEFORE REAL MOTION STARTED
+    # p_end = [0.7, 0.2, 1.24+z_adjust]           # USED for comparing torque minimization
 
 elif move == 'punch':
     n_hat = [-1, 0 , 0]     # This is for example a vector normal to a board that is mounted vertically.
@@ -255,7 +256,7 @@ if not fn.inWorkspace(p_0,p_end,n_hat):
     sys.exit('####### RUNTIME ERROR: Initial position is not in workspace! #######\n')
 
 # HOMING
-# init_state_centauro.homing(pose=init_pose)
+init_state_centauro.homing(pose=init_pose)
 
 # =============================================================================
 #   NONLINEAR PROGRAM --> FIND A SOLUTION FOR THE OPTIMAL CONTROL INPUT
@@ -470,22 +471,11 @@ for Mk in range(M):
         # E = dot(n_hatMX,pdotk)
         # E = -dot(hk_z,hk_z)
         # V += E
-        experimental = False
-        if experimental:
-            # Experiment with 
-            J_hat = mtimes(u_hatMX.T,Jk)
-            Lambda_hat = inv(mtimes(J_hat,mtimes(inv(Bk),J_hat.T))+MX(mu_scalar))
-            h_hat = mtimes(Lambda_hat,mtimes(u_hatMX.T,vk))
-            E = h_hat
+        E = dot(u_hatMX,hk_ts)    # WORKS BEST
+        V += E
+        if offdirectional_momentum:
+            E = dot(hk_ts - dot(hk_ts,u_hatMX)*u_hatMX,hk_ts - dot(hk_ts,u_hatMX)*u_hatMX)
             V += E
-            E = dot(pdotk - dot(pdotk,n_hatMX)*n_hatMX,pdotk - dot(pdotk,n_hatMX)*n_hatMX)*0.1
-            V += E
-        else:
-            E = dot(u_hatMX,hk_ts)    # WORKS BEST
-            V += E
-            if offdirectional_momentum:
-                E = dot(hk_ts - dot(hk_ts,u_hatMX)*u_hatMX,hk_ts - dot(hk_ts,u_hatMX)*u_hatMX)
-                V += E
 
         if minimize_torque:
             tau_iota = mtimes(Jk.T,u_hatMX)
@@ -576,9 +566,9 @@ for Mk in range(M):
                 # L = dot(qkmin1-qk,qkmin1-qk)
                 # L = dot(qdotk,qdotk)/dot(qdot_ub,qdot_ub)*Q_weight
                 # L = dot(qdotk,qdotk)/dot(qdot_ub,qdot_ub)
-                L = dot(qdotk,qdotk)/dot(qdot_ub,qdot_ub)
+                L = dot(qdotk,qdotk)/dot(qdot_ub,qdot_ub)*0.05
                 V += L
-                L = dt/dt_ub[Mk]
+                L = 0.35*dt/dt_ub[Mk]
                 V += L
                 # V += dt/dot(dt_ub[Mk],dt_ub[Mk])
                 # V += dot(dt,dt)/dot(dt_ub[Mk],dt_ub[Mk])
@@ -786,7 +776,7 @@ if evaluate:
     tau_lbopt = -1*tau_ubopt
     evaluation.addBoundedParam('tau','joint_effort',np.transpose(tau_opt),tau_lbopt,tau_ubopt)
     evaluation.addBoundedParam('Tf','final_time',Tf_opt,Tf_lb,Tf_ub)
-    evaluation.addParam('time',T_opt)
+    evaluation.addParam('time',np.transpose(T_opt))
     evaluation.addParam('joints',joint_str)
     evaluation.addParam('n_hat',n_hat)
     evaluation.addParam('impact_postion',p_end)
@@ -817,6 +807,7 @@ if evaluate:
             task_inertia_opt[:,:,k] = task_I_k.full()
             momentum_vector_opt[:,k] = h_vector_k.full().flatten()
             momentum_scalar_opt[:,k] = h_scalar_k.full()
+        momentum_scalar_opt = momentum_scalar_opt.flatten()
         evaluation.addParam('twist_e',twist_opt)
         evaluation.addParam('jacobian',jacobian_opt)
         evaluation.addParam('Lambda',task_inertia_opt)
@@ -846,20 +837,20 @@ pose = fn.RobotPose(name=joint_str,q=q_opt,qdot=qdot_opt,qddot=qddot_opt,tau=tau
 # print joint_str
 # print pose.name
 
-plot_joints = True
+plot_joints = False
 if plot_joints:
-    pose.plot_q(lb=q_lb,ub=q_ub,limits=True,Tvec=T_opt,nj_plot=nj)
+    # pose.plot_q(lb=q_lb,ub=q_ub,limits=True,Tvec=T_opt,nj_plot=nj)
     pose.plot_qdot(lb=qdot_lb,ub=qdot_ub,limits=True,Tvec=T_opt,nj_plot=nj)
-    pose.plot_qddot(lb=qddot_lb,ub=qddot_ub,limits=True,Tvec=T_opt,nj_plot=nj)
+    # pose.plot_qddot(lb=qddot_lb,ub=qddot_ub,limits=True,Tvec=T_opt,nj_plot=nj)
     ubtau_plt = np.zeros([N_tot+1,nj])
     ubtau_plt[0:N_cum[0]] = np.matlib.repmat(W_tau[0]*np.asarray(tau_ub).reshape(1,-1),N_cum[0],1)
     ubtau_plt[N_cum[0]:] = np.matlib.repmat(W_tau[1]*np.asarray(tau_ub).reshape(1,-1),N_stage[1]+1,1)
     lbtau_plt = -1*ubtau_plt
-    pose.plot_tau(lb=lbtau_plt,ub=ubtau_plt,limits=True,Tvec=T_opt,nj_plot=nj)
+    # pose.plot_tau(lb=lbtau_plt,ub=ubtau_plt,limits=True,Tvec=T_opt,nj_plot=nj)
 
 ###################################################################################################
 
-run_final = False
+run_final = True
 if run_final:
     #   CREATE TWO POSE CLASSES: STAGE_1 AND STAGE_2
     #   INTERPOLATE TO A DESIRED SAMPLE RATE

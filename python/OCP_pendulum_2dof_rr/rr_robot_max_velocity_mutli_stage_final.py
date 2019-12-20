@@ -713,7 +713,7 @@ if var_pl or var_save:
                 twist_k = mtimes(jacobian_k,qdot_k)
                 pdot_k = twist_k[0:3]
                 pdot_opt[:,k] = pdot_k.full().flatten()
-        evaluation.addParam('pdot_e',pdot_opt)
+            evaluation.addParam('pdot_e',pdot_opt)
         fileName = os.path.splitext(os.path.basename(__file__))[0]
         print fileName
         evaluation.save(fileName)
