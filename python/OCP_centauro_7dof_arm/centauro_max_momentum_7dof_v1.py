@@ -46,7 +46,7 @@ import centauro_inverse_kinematics as invKyn
 
 # HITTING SURFACE NORMAL VECTOR
 
-move = 'punch'           # punch or chop
+move = 'chop'           # punch or chop
 
 
 if move == 'chop':

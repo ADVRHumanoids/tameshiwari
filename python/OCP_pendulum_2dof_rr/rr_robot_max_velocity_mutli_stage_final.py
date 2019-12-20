@@ -57,7 +57,7 @@ import casadi_kin_dyn.pycasadi_kin_dyn as cas_kin_dyn
 # =============================================================================
 #   INITIALIZATION
 # =============================================================================
-var_pl      = False
+var_pl      = True
 var_ani     = False
 var_save    = True
 var_h_opt   = True
@@ -362,7 +362,7 @@ for Mi in range(M):
             #   INTEGRAL COST CONTRIBUTION
             #   L = h/ubh + \dot{q}_k+1^T\dot{q}_k+1/blablabla
             if var_h_opt:                
-                L = 0.5*h/ubh[1] + dot(qdotk,qdotk)/dot(ubqdot,ubqdot)*0.1
+                L = 0.35*h/ubh[1] + dot(qdotk,qdotk)/dot(ubqdot,ubqdot)*0.05
                 # L = h + dot(qdotk,qdotk)
             else:
                 L = dot(qdotk,qdotk)
@@ -533,7 +533,7 @@ if var_pl or var_save:
     ubtau_plt = np.zeros([N_tot+1,nj])
     ubtau_plt[0:N_cum[0]] = np.matlib.repmat(ubtau[:,0].reshape(1,-1),N_cum[0],1)
     ubtau_plt[N_cum[0]:] = np.matlib.repmat(ubtau[:,1].reshape(1,-1),N_stage[1]+1,1)
-    pose.plot_tau(show=var_pl,save=False,title=True,block=False,lb=-ubtau_plt,ub=ubtau_plt,limits=True,Tvec=T_opt)
+    # pose.plot_tau(show=var_pl,save=False,title=True,block=False,lb=-ubtau_plt,ub=ubtau_plt,limits=True,Tvec=T_opt)
     
     # pose.plot_joint(joint=1,nq=2,show=False,save=False,title=True,block=False)
     # pose.plot_joint(joint=2,nq=2,show=False,save=False,title=True,block=False)
@@ -702,15 +702,22 @@ if var_pl or var_save:
         evaluation.addParam('impact_postion',p_end)
         evaluation.addParam('stage_interval',N_stage)
         evaluation.addParam('data_points',data_points)
+        eval_velocity = True
+        if eval_velocity:
+            pdot_opt = np.zeros([3,data_points])
+            jacobian_opt = np.zeros([6,nj,data_points])
+            for k in range(data_points):
+                q_k = q_opt[k,:]
+                qdot_k = qdot_opt[k,:]
+                jacobian_k = jacEE(q=q_k)['J']
+                twist_k = mtimes(jacobian_k,qdot_k)
+                pdot_k = twist_k[0:3]
+                pdot_opt[:,k] = pdot_k.full().flatten()
+        evaluation.addParam('pdot_e',pdot_opt)
         fileName = os.path.splitext(os.path.basename(__file__))[0]
         print fileName
         evaluation.save(fileName)
-        
 
-
-
-
-    
 #==============================================================================
 #   ANIMATING THE RESULTS WITH RVIZ
 #   HAS TO HAPPEN AFTER PLOTTING AND SAVING BECAUSE IT OVERWRITES THE REAL POSE

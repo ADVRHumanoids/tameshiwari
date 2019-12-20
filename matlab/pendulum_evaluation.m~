@@ -1,7 +1,7 @@
 clearvars; close all; clc;
 
 addpath('../python/OCP_pendulum_2dof_rr/results');
-filename = 'rr_robot_max_velocity_mutli_stage_final_2019-12-20T11:21:08.mat';
+filename = 'rr_robot_max_velocity_mutli_stage_final_2019-12-20T01:46:58.mat';
 load(filename)
 
 if isunix
@@ -33,14 +33,7 @@ plot(time,joint_velocity.qdot_ub,'--')
 xlim([0 time(end)])
 
 figure(3)
-stairs(time,joint_effort.tau')
+stairs(time,joint_effort.tau)
 hold on
-stairs(time,joint_effort.tau_lb','--')
-stairs(time,joint_effort.tau_ub','--')
-xlim([0 time(end)])
 
-figure(4)
-plot(time,pdot_e(3,:))
-hold on
-plot([time(1) time(end)],[-6.19 -6.19])
 xlim([0 time(end)])
