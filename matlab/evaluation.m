@@ -13,6 +13,7 @@ import casadi.*
 
 impact = true(1);
 save = true(1);
+save = false(1);;
 
 %% Import Pynocchio functions for evaluating results
 addpath('../python/OCP_centauro_7dof_arm/casadi_urdf')
