@@ -46,7 +46,7 @@ import centauro_inverse_kinematics as invKyn
 
 # HITTING SURFACE NORMAL VECTOR
 
-move = 'chop'           # punch or chop
+move = 'punch'           # punch or chop
 
 
 if move == 'chop':
@@ -816,7 +816,7 @@ if evaluate:
         evaluation.addParam('h_e_scalar',momentum_scalar_opt)
     fileName = os.path.splitext(os.path.basename(__file__))[0]
     print fileName
-    # evaluation.save(fileName)
+    evaluation.save(fileName)
 
 joint_str += ['j_arm1_7']
 

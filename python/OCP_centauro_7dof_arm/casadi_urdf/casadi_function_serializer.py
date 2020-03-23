@@ -22,7 +22,7 @@ load_file = True
 dirName = os.path.split(os.path.abspath(os.path.realpath(sys.argv[0])))[0]
 
 if load_file:
-    torso_fixed = False
+    torso_fixed = True
     if torso_fixed:
         fileName = "%s/centauro_urdf_6dof_joints_1111110.txt" % dirName
     else:
