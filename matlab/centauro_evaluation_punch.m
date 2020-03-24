@@ -6,7 +6,7 @@ path = matlab.desktop.editor.getActiveFilename;
 cd(fullfile(path))
 
 addpath('../python/OCP_centauro_7dof_arm/results');
-filename = 'centauro_max_momentum_7dof_final_2019-12-20T12:07:11.mat';
+filename = 'centauro_max_momentum_7dof_final_2020-03-23T23:46:08.mat';
 load(filename)
 
 if ismac
@@ -28,7 +28,7 @@ ccycle = colorcycle();
 pt = 426.7913;
 inch = pt*0.01384;
 
-nj = 6;
+nj = 7;
 
 fx = 300;       % right one for Latex
 % fx = 600;       % for testing plots
@@ -77,7 +77,7 @@ box on
 xlim([0 time(end)])
 set(gcf, 'Position',  size_1)
 if save
-    fig_name = '6dof_q';
+    fig_name = '7dof_q';
     if tikz
         cleanfigure;
         matlab2tikz(strcat(save_path,fig_name,'.tex'),'width', '\fwidth', ...
@@ -114,7 +114,7 @@ xlim([0 time(end)])
 set(gcf, 'Position',  size_2)
 leg.Location = 'north';
 if save
-    fig_name = '6dof_qdot';
+    fig_name = '7dof_qdot';
     if tikz
         cleanfigure;
         matlab2tikz(strcat(save_path,fig_name,'.tex'),'width', '\fwidth', ...
@@ -156,7 +156,7 @@ box on
 xlim([0 time(end)])
 set(gcf, 'Position',  size_3)
 if save
-    fig_name = '6dof_tau';
+    fig_name = '7dof_tau';
     if tikz
         cleanfigure;
         matlab2tikz(strcat(save_path,fig_name,'.tex'),'width', '\fwidth', ...
@@ -184,7 +184,7 @@ ylabel('momentum [kg m/s]')
 xlim([0 time(end)])
 set(gcf, 'Position',  size_4)
 if save
-    fig_name = '6dof_h';
+    fig_name = '7dof_h';
     if tikz
         cleanfigure;
         matlab2tikz(strcat(save_path,fig_name,'.tex'),'width', '\fwidth', ...

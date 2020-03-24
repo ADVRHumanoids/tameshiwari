@@ -2,18 +2,21 @@
 # -*- coding: utf-8 -*-
 
 #   This script is part of Tameshiwari Repository
-#   Git: https://github.com/ADVRHumanoids/tameshiwari.git
+#   Git: https://github.com/ADVRHumanoids/tameshiwari
 #   Created by: Paul Janssen @ Istituto Italiano di Tecnologia
 
-#   Extension of v1 where here there is a vector based optimization.
-#   This implies that a normal vector to hitting surface must be provided
-#   in order to have the optimizer find optimal hitting trajectory.
+#   A direct multiple shooting multi-stage optimal control problem (OCP) is 
+#   implemented in this script. The objective of said OCP is to generate
+#   powerful impact motion trajectories for the Centauro robot @IIT. The script
+#   uses a momentum based optimization algorithm to generate these motions.
+#   The script requires the operator to define the type of motion (chop or
+#   punch), a Cartesian impact position, and a impact surface normal vector.
+#   Additionally, several workspace restricting constraints are included, as 
+#   well as actuator impact minimization, and dynamic time horizon for
+#   minimizing the deceleration duration.
 
-#   Additionally, a workspace constraint is enforced base on the normal
-#   vector of the hitting surface. This constraint represents a 2D box.
-#   Perpendicular to this box surface the contraints are limited infinitely.
-
-#   Adding Torso 
+#   The current version of this script is capable to work with 6 or 7 DOF
+#   URDF model of Centauro.
 
 #==============================================================================
 #   RELEASED PACKAGES
@@ -62,8 +65,6 @@ if move == 'chop':
     torso_fixed = True
     minimize_time = False           # of stage 1
 
-    # Q_weight = 0.01
-
     z_adjust = -0.113 # [m]
     p_end = [0.9, 0.0, 1.24+z_adjust]           # THIS WAS USED BEFORE AND WAS HITTING THE BOARD BEFORE REAL MOTION STARTED
     # p_end = [0.7, 0.2, 1.24+z_adjust]           # USED for comparing torque minimization
@@ -81,7 +82,6 @@ elif move == 'punch':
     torso_fixed = False
     minimize_time = False
 
-    # Q_weight = 0.000001
     Q_weight = 0.001
 
     p_end = [0.8, 0.5, 1.35]                    # Nice one for hitting vertical board.
@@ -117,12 +117,8 @@ else:
     joints.addJoints('arm1')
 joint_str = joints.getName()
 
-# print joint_str
 joint_num = [1,2,3,4,5,6]
-# joint_str = [joint_str[j] for j in [i for i,x in enumerate(joint_str) if int(x[-1]) in joint_num]]
 for joint in joint_str:
-    # print joint
-    # print type(joint)
     try:
         if int(joint[-1]) not in joint_num:
             joint_str.remove(joint)
@@ -132,25 +128,18 @@ for joint in joint_str:
 nj = len(joint_str)
 nq = 3
 
-
 prot_str = ['j_arm1_5', 'j_arm1_6']
 prot_list = [i for i, joint in enumerate(joint_str) if joint in prot_str]
-print prot_list
+# print prot_list
 
-# print joint_str
 # JOINT LIMITS
 
 joint_lim = config.JointBounds(joint_str)
 q_lb = joint_lim.getLowerBound()
 q_ub = joint_lim.getUpperBound()
 
-# print q_lb 
-# print q_ub
-# q_lb = [-3.312, 0.04, -2.465]
-# q_ub = [1.615, 0.04, 0.28]
 qdot_ub = joint_lim.getVelocityBound()
 factor = 1.0
-# factor = 3.0
 qdot_ub = [x*factor for x in qdot_ub]
 qdot_lb = [-x for x in qdot_ub]
 qddot_ub = 100*np.ones(nj)
@@ -159,9 +148,6 @@ qddot_lb = [-x for x in qddot_ub]
 tau_ub = joint_lim.getTorqueBound() # [143.00 143.00]
 tau_lb = [-x for x in tau_ub]
 W_tau = [0.6, 0.8]
-# W_tau = [0.6, 1.0]
-# W_tau = [0.6, 2.0]
-# W_tau = [1.6, 2.0]
 
 # TIME LIMITS
 
@@ -178,17 +164,11 @@ else:
 
 N_tot = np.sum(N_stage)
 data_points = N_tot + 1
-# print type(N_tot)
 Tf0_list = [Tf_1, 1]
 Tf0_vec = np.asfarray(np.array(Tf0_list,ndmin=2))
-# Tf_lb = [Tf0_list[0], Tf0_list[1]]
-Tf_lb = [Tf0_list[0], 0.05]
 Tf_lb = [Tf0_list[0], 0.001]
-# Tf_lb = [Tf0_list[0], 0.2]
-# Tf_lb = [Tf0_list[0], 0.1]
 Tf_lb = np.asfarray(np.array(Tf_lb,ndmin=2))
-print np.shape(Tf_lb)
-# Tf_ub = [Tf0_list[0], Tf0_list[1]]
+# print np.shape(Tf_lb)
 Tf_ub = [Tf0_list[0], 3]
 Tf_ub = np.asfarray(np.array(Tf_ub,ndmin=2))
 
@@ -196,7 +176,6 @@ if minimize_time:
     Tf_lb[:,0] = Tf_lb[:,1]
     Tf_ub[:,0] = Tf_ub[:,1]
     
-
 dt_0_vec = (Tf0_vec/N_stage).flatten().tolist()
 # print h0_vec
 dt_lb = (Tf_lb/N_stage).flatten().tolist()
@@ -204,16 +183,12 @@ dt_lb = (Tf_lb/N_stage).flatten().tolist()
 dt_ub = (Tf_ub/N_stage).flatten().tolist()
 # print ubh
 
-
-
 # DEFINE CASADI FUNCTION & END-EFFECTOR
-
 end_effector = 'arm1_8'
 invDyn = Function.deserialize(kindyn.rnea())
 forKin = Function.deserialize(kindyn.fk(end_effector))
 jacEE = Function.deserialize(kindyn.jacobian(end_effector))
 inertiaJS = Function.deserialize(kindyn.crba())
-
 # print forKin
 # print inertiaJS
 
@@ -236,14 +211,6 @@ ball_radius = 0.75/2
 theta_lb = math.pi/2
 theta_ub = math.pi
 
-# p_end = [1.0, 0.0, 1.35] 
-# p_end = [1.00696, 0.0, 1.23751]
-# p_end = [1.00696, 0.0724726, 1.23751]
-# p_end = [0.9, 0.0, 1.24]
-# p_end = [0.8, 0.3, 1.24]                    # This is for hitting vertical board.
-# p_end = [0.7, 0.4, 1.45]
-# p_end = [0.99, 0.0, 1.24]                   # THIS IS VERY VERY CLOSE TO SINGULARITY
-# p_end = [0.7, 0.0, 1.0]                     # BOARD ON HIP LEVEL CLOSE TO TORSO
 cont, q_end = invKyn.invKin(p_des=p_end,fk=forKin,frame=end_effector,j_str=joint_str,q_init=q_0,animate=False,T=2)
 
 # INITIAL GUESS ON JOINT POSITION
@@ -375,7 +342,6 @@ for Mk in range(M):
             qdot_ubopt[:,k+1] = qdot_ub
             qddot_lbopt[:,k+1] = qddot_lb
             qddot_ubopt[:,k+1] = qddot_ub
-            # w0 += q_0 + qdot_0 + qddot_0
             if p_constraint and initial_guess:
                 w0 += q_0_vec[:,k+1].tolist()
                 w0 += qdot_0 + qddot_0
@@ -406,14 +372,13 @@ for Mk in range(M):
             g += [e_norm]
             lbg += [0.]
             ubg += [0.005]          # 5 millimeter deviation allowed
-            # ubg += [0.05]          # 5 centimeter deviation allowed
-        # else:
-        #     pk = forKin(q=qk)['ee_pos']
-        #     pdel = minus(pk,MX(p_torso))
-        #     projection = dot(MX([0,0,1]),pdel)
-        #     g += [projection]
-        #     lbg += [0]
-        #     ubg += [inf]
+        else:
+            pk = forKin(q=qk)['ee_pos']
+            pdel = minus(pk,MX(p_torso))
+            projection = dot(MX([0,0,1]),pdel)
+            g += [projection]
+            lbg += [0]
+            ubg += [inf]
 
         approach_constraint = True
         if approach_constraint:
@@ -428,9 +393,7 @@ for Mk in range(M):
 
         #   TERMINAL VELOCITY CONSTRAINT
         #   CONSTRAIN THE Z VELOCITY SUCH THAT THE EE IS GOING TO ARRIVE FROM THE TOP
-        # ts_index = DM(np.eye(nj,6))
         Jk = jacEE(q=qk)['J']
-        # print Jk.sparsity()
         if nj < 6:
             Jk_ts, junk = vertsplit(Jk,[0,nj,6])
             sz = nj
@@ -449,28 +412,15 @@ for Mk in range(M):
             ubg += [0]
 
         #   TERMINAL COST --> MOMENTUM MAXIMIZATION
-        # E = pdotk_z
-        # E = -1*dot(pdotk_z,pdotk_z)
-        # V += E
         Bk = inertiaJS(q=qk)['B']
         mu = 10**(-2)
         mu_scalar = 0
-        # mu_scalar = 10**(-2)
         Lamk = inv(mtimes(Jk_ts,mtimes(inv(Bk),Jk_ts.T))+mu*MX.eye(sz))
-        # Lamk = inv(mtimes(Jk_ts,mtimes(inv(Bk),Jk_ts.T)))
         hk_ts = mtimes(Lamk,vk_ts)
         if nj == 3:
             hk_x, hk_y, hk_z = vertsplit(hk_ts,range(4))
         else:
             hk_x, hk_y, hk_z, hk_rot = vertsplit(hk_ts,range(4) + [sz])
-        # E = -hk_x
-        # E = -dot(hk_z,hk_z)*100000
-        # E = hk_z
-        # E = -1*power(dot(u_hatMX,hk_ts),2)
-        # E = dot(u_hatMX,hk_ts)    # WORKS BEST
-        # E = dot(n_hatMX,pdotk)
-        # E = -dot(hk_z,hk_z)
-        # V += E
         E = dot(u_hatMX,hk_ts)    # WORKS BEST
         V += E
         if offdirectional_momentum:
@@ -483,8 +433,6 @@ for Mk in range(M):
             W_tau_iota = MX(nj,nj)
             for ind in prot_list:
                 W_tau_iota[ind,ind] = w_tau_iota
-            # W_tau_iota[4,4] = w_tau_iota
-            # W_tau_iota[5,5] = w_tau_iota
             print W_tau_iota
             E_2 = mtimes(tau_iota.T,mtimes(W_tau_iota,tau_iota))
             V += E_2
@@ -505,18 +453,6 @@ for Mk in range(M):
             g += [tauk]
             lbg += [W_tau[Mk]*tau_lb_j for tau_lb_j in tau_lb]
             ubg += [W_tau[Mk]*tau_ub_j for tau_ub_j in tau_ub]
-
-            #   INTEGRAL COST CONTRIBUTION
-            # L = dt*dot(qdotk,qdotk)*0.005
-            # L += 0.000001*dt**2
-            # L = dt
-            # weight = 0.001
-            # W_qdot = np.eye(nj)*weight
-            # L = mtimes(qdotk.T,mtimes(W_qdot,qdotk))
-            # L = weight*dot(qdotk,qdotk)
-            # L = mtimes(qdotk.T,qdotk)/dt
-            # L = dt
-            # V += L
 
             #   INTEGRATE EULER METHOD
             qdotk_next = qdotk + dt*qddotk 
@@ -541,38 +477,10 @@ for Mk in range(M):
 
             experimental_brake = True
             if experimental_brake:
-                # Jk = jacEE(q=qk)['J']
-                # # print Jk.sparsity()
-                # if nj < 6:
-                #     Jk_ts, junk = vertsplit(Jk,[0,nj,6])
-                #     sz = nj
-                # else: 
-                #     Jk_ts = Jk
-                #     sz = 6
-                # vk = mtimes(Jk,qdotk)
-                # pdotk, omegak = vertsplit(vk,[0,3,6])
-                # pdotk_x, pdotk_y, pdotk_z = vertsplit(pdotk,range(4))
-                # vk_ts = mtimes(Jk_ts,qdotk) # Task space velocity vector
-                # L = dot(pdotk_x,pdotk_x) + dot(pdotk_y,pdotk_y)
-                # V += L
-                # L = dot(qk,qk)
-                # L = dot(qdotk,qdotk)
-                # L = 0
-                # weight = 0.001
-                # # weight = 1
-                # W_qdot = np.eye(nj)*weight
-                # L = mtimes(qdotk.T,mtimes(W_qdot,qdotk))
-                # L = 0
-                # L = dot(qkmin1-qk,qkmin1-qk)
-                # L = dot(qdotk,qdotk)/dot(qdot_ub,qdot_ub)*Q_weight
-                # L = dot(qdotk,qdotk)/dot(qdot_ub,qdot_ub)
                 L = dot(qdotk,qdotk)/dot(qdot_ub,qdot_ub)*0.05
                 V += L
                 L = 0.35*dt/dt_ub[Mk]
                 V += L
-                # V += dt/dot(dt_ub[Mk],dt_ub[Mk])
-                # V += dot(dt,dt)/dot(dt_ub[Mk],dt_ub[Mk])
-                # pass
             else:
                 L = dot(qkmin1-qk,qkmin1-qk)
                 V += L
@@ -599,18 +507,8 @@ for Mk in range(M):
 
         #   TERMINAL JOINT-SPACE VELOCITY CONSTRAINT
         g += [qdotk]
-        #   Relaxation of terminal velocity
-        # lbter = [-0.001, -0.001]
-        # ubter = [0.001, 0.001]
-        # lbg += lbter
-        # ubg += ubter
-        #   WITHOUT SLACK
         lbg += np.zeros(nj).tolist()
         ubg += np.zeros(nj).tolist()
-        #   TERMINAL COST 
-        # E = N_stage[Mk]*dt
-        # V += E
-
 
 # =============================================================================
 #   SOLVER CREATOR AND SOLUTION
@@ -639,9 +537,7 @@ for i in range(nq+1):
         else:
             n_rep = N_stage[m]
         tmp = np.matlib.repmat(indnstate,1,n_rep).flatten()
-        # print tmp
         tmp = np.concatenate((np.asarray(indh),tmp)).reshape(-1,1) > 0
-        # print tmp
         if m == 0:
             tmp_stage = tmp
         if m > 0:
@@ -830,23 +726,19 @@ q_opt = np.concatenate((q_opt,zerovec),axis=1)
 qdot_opt = np.concatenate((qdot_opt,zerovec),axis=1)
 qddot_opt = np.concatenate((qddot_opt,zerovec),axis=1)
 tau_opt = np.concatenate((tau_opt,zerovec),axis=1)
-# print np.shape(q_opt)
 
-# print np.shape(q_opt)
 pose = fn.RobotPose(name=joint_str,q=q_opt,qdot=qdot_opt,qddot=qddot_opt,tau=tau_opt,rate=int(1/dt_opt[0]))
-# print joint_str
-# print pose.name
 
 plot_joints = False
 if plot_joints:
-    # pose.plot_q(lb=q_lb,ub=q_ub,limits=True,Tvec=T_opt,nj_plot=nj)
+    pose.plot_q(lb=q_lb,ub=q_ub,limits=True,Tvec=T_opt,nj_plot=nj)
     pose.plot_qdot(lb=qdot_lb,ub=qdot_ub,limits=True,Tvec=T_opt,nj_plot=nj)
-    # pose.plot_qddot(lb=qddot_lb,ub=qddot_ub,limits=True,Tvec=T_opt,nj_plot=nj)
+    pose.plot_qddot(lb=qddot_lb,ub=qddot_ub,limits=True,Tvec=T_opt,nj_plot=nj)
     ubtau_plt = np.zeros([N_tot+1,nj])
     ubtau_plt[0:N_cum[0]] = np.matlib.repmat(W_tau[0]*np.asarray(tau_ub).reshape(1,-1),N_cum[0],1)
     ubtau_plt[N_cum[0]:] = np.matlib.repmat(W_tau[1]*np.asarray(tau_ub).reshape(1,-1),N_stage[1]+1,1)
     lbtau_plt = -1*ubtau_plt
-    # pose.plot_tau(lb=lbtau_plt,ub=ubtau_plt,limits=True,Tvec=T_opt,nj_plot=nj)
+    pose.plot_tau(lb=lbtau_plt,ub=ubtau_plt,limits=True,Tvec=T_opt,nj_plot=nj)
 
 ###################################################################################################
 
